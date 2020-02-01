@@ -7,16 +7,21 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-struct login {
-    int online;
-    char username[1024];
-    char password[1024];
-};
+#define TRUE 1
+#define FALSE 0
 
 struct peer {
     int peer_id; // !0 -> online, 0 - > offline
     char ip[20];
     int port;
+};
+
+
+struct login {
+    int online;
+    char username[1024];
+    char password[1024];
+    struct peer addrs_info;
 };
 
 void showDatabase(struct login database[], int database_counter) {
@@ -29,12 +34,13 @@ void showDatabase(struct login database[], int database_counter) {
     }
     printf("DATABASE:\n\n");
     for(int i=0; i<=database_counter; i++)
-        printf("%d. USERNAME: %s PASSWORD: %s\n",i+1, database[i].username, database[i].password);
+        printf("%d. STATUS: %d USERNAME: %s PASSWORD: %s\n",i+1, database[i].online,
+         database[i].username, database[i].password);
     printf("---------------------------------------------\n");
 }
 
 void usersOnlineDB(struct login database[], int database_counter) {
-    // Shows the online users in the databse.
+    // Shows the online users in the database.
 
     printf("---------------------------------------------\n");
     if(database_counter == -1) {
@@ -44,7 +50,8 @@ void usersOnlineDB(struct login database[], int database_counter) {
     printf("ONLINE USERS IN DATABASE:\n\n");
     for(int i=0; i<database_counter; i++) {
         if(database[i].online == 1)
-            printf("%d. USERNAME: %s PASSWORD: %s\n",i+1, database[i].username, database[i].password);
+            printf("%d. USERNAME: %s PASSWORD: %s\n",i+1,
+             database[i].username, database[i].password);
     }
     printf("---------------------------------------------\n");
 
@@ -57,7 +64,6 @@ int userNameTaken(struct login user, struct login database[], int database_count
     for(int i=0; i<=database_counter; i++)
         if(strcmp(database[i].username, user.username) == 0)
             return 1;
-
     return 0;
 }
 
@@ -70,7 +76,8 @@ void showOnlineClients(struct peer online_clients[]) {
     int count = 1;
     for(int i=0; i<10; i++)
         if(online_clients[i].peer_id != 0)
-            printf("%d. TCP_PEER_ID: %d. IP: %s PORT: %d\n",count++, online_clients[i].peer_id, online_clients[i].ip, online_clients[i].port);
+            printf("%d. TCP_PEER_ID: %d. IP: %s PORT: %d\n",count++,
+             online_clients[i].peer_id, online_clients[i].ip, online_clients[i].port);
     printf("---------------------------------------------\n");
         
 }
@@ -80,13 +87,13 @@ int authenticate_login(struct login user, struct login *database, int database_c
     // Authenticates the login details provided by the user.
     
     for(int i=0; i<=database_counter; i++) 
-        if(strcmp(database[i].username, user.username) == 0 && strcmp(database[i].password, user.password) == 0) {
+        if(strcmp(database[i].username, user.username) == 0 && 
+           strcmp(database[i].password, user.password) == 0) {
             if(database[i].online == 0) {
-                database[i].online = 1;
-                return 1;
+                return i;
             }
             else 
-                return 0;
+                return -2;
         }
     return -1;
 }
@@ -151,11 +158,13 @@ int main(int args, char *argv[]) {
 
     printf("Waiting for connections..\n");
 
-    while(1) {
+    while(TRUE) {
 
         FD_ZERO(&fd_arr);
         FD_SET(sock_id, &fd_arr);
         FD_SET(0, &fd_arr);
+
+        int auth_stat;
 
         for(int i=0; i<10; i++) {
             if(online_clients[i].peer_id > 0)
@@ -195,7 +204,7 @@ int main(int args, char *argv[]) {
 
             printf("FROM CLIENT: %s\n", buff);;
             if(strcmp(buff, "y") == 0)
-                isNewClient = 1;
+                isNewClient = TRUE;
             else if(strcmp(buff, "n") != 0) {
                 printf("Wrong input from client!\n");
                 continue;
@@ -214,7 +223,7 @@ int main(int args, char *argv[]) {
                 // Need to add it to all_clients_ever, online client and assign a user name.
                 // Add to the all_clients list (historical record of clients)
 
-                if(userNameTaken(new_user_login, database, database_counter) == 1) {
+                if(userNameTaken(new_user_login, database, database_counter) == TRUE) {
                     printf("Used Username entered by the client.\n");
                     send_id = send(client_id, "Username taken.", strlen("Username taken."), 0);
                     if(send_id == 0) {
@@ -229,7 +238,8 @@ int main(int args, char *argv[]) {
                     strcpy(database[database_counter].password, new_user_login.password);
                     database[database_counter].online = 1;
 
-                    int send_id = send(client_id, "Registration successful", strlen("Registration successful"), 0);
+                    int send_id = send(client_id, "Registration successful",
+                                         strlen("Registration successful"), 0);
                     if(send_id == -1) {
                         printf("Cannot send successful registration msg\n");
                         exit(1);
@@ -237,21 +247,23 @@ int main(int args, char *argv[]) {
                 }
             }
             else { // User had a connection with the server in the past.
-                int auth_stat = authenticate_login(new_user_login, database, database_counter);
-                if(auth_stat == 1) {
+                auth_stat = authenticate_login(new_user_login, database, database_counter);
+                if(auth_stat >= 0) {
                     printf("Client login succesfull! Sending the greeting msg..\n");
-                    int send_id = send(client_id, "Login Successful", strlen("Login Successful"), 0);
+                    int send_id = send(client_id, "Login Successful",
+                                         strlen("Login Successful"), 0);
                     if(send_id == -1) {
                         printf("Cannot send the greeting msg!\n");
                         exit(1);
                     }
-
+                    database[auth_stat].online = 1;
                     usersOnlineDB(database, database_counter);
 
                 }
-                else if(auth_stat == 0) {
+                else if(auth_stat == -2) {
                     printf("User already loged in!\n");
-                    send_id = send(client_id, "Already logged in.", strlen("Already logged in."), 0);
+                    send_id = send(client_id, "Already logged in.", 
+                                    strlen("Already logged in."), 0);
                     if(send_id == -1) {
                         printf("Cannot send already logged in message!\n");
                         exit(1);
@@ -278,15 +290,46 @@ int main(int args, char *argv[]) {
             }
 
             printf("Recieved UDP info for the client %d.\n", client_id);
-            new_user.peer_id = client_id;
-            strcpy(new_user.ip, inet_ntoa(udp_id.sin_addr));
-            new_user.port = ntohs(udp_id.sin_port);
+            // new_user.peer_id = client_id;
+            // strcpy(new_user.ip, inet_ntoa(udp_id.sin_addr));
+            // new_user.port = ntohs(udp_id.sin_port);
+
+            // for(int i=0; i<10; i++) { // Add the client list to online client_list.
+            //     if(online_clients[i].peer_id == 0) {
+            //         online_clients[i] = new_user;
+            //         break;
+            //     }
+            //     if(i == 9) {
+            //         printf("Online clients limit reached!\n");
+            //         exit(0);
+            //     }
+            // }
+          
+
+            new_user_login.addrs_info.peer_id = client_id;
+            strcpy(new_user_login.addrs_info.ip, inet_ntoa(udp_id.sin_addr));
+            new_user_login.addrs_info.port = ntohs(udp_id.sin_port);
 
             for(int i=0; i<10; i++) { // Add the client list to online client_list.
                 if(online_clients[i].peer_id == 0) {
-                    online_clients[i] = new_user;
+                    online_clients[i] = new_user_login.addrs_info;
                     break;
                 }
+                if(i == 9) {
+                    printf("Online clients limit reached!\n");
+                    exit(0);
+                }
+            }
+
+            if(isNewClient) { 
+                database[database_counter].addrs_info.peer_id = client_id;
+                strcpy(database[database_counter].addrs_info.ip, inet_ntoa(udp_id.sin_addr));
+                database[database_counter].addrs_info.port = ntohs(udp_id.sin_port);
+            }
+            else {
+                database[auth_stat].addrs_info.peer_id = client_id;
+                strcpy(database[auth_stat].addrs_info.ip, inet_ntoa(udp_id.sin_addr));
+                database[auth_stat].addrs_info.port = ntohs(udp_id.sin_port);
             }
           
             broadcast(online_clients);
@@ -309,8 +352,16 @@ int main(int args, char *argv[]) {
 
                 if(strcmp(buff, "exit") == 0) {
                     printf("Connection close request recieve. Processing...\n");
-                    int temp = online_clients[i].peer_id;
-                    online_clients[i].peer_id = 0;
+                    int temp = online_clients[i].peer_id, j;
+                    for(j=0; j<=database_counter; j++) {
+                        printf("%d\n", database[j].addrs_info.peer_id);
+                        if(database[j].addrs_info.peer_id == temp)
+                            break;
+                    }
+                    printf("%d %d\n", online_clients[i].peer_id, database[j].addrs_info.peer_id);
+                    online_clients[i].peer_id = 0; // Changing the status of the client to offline
+                    database[j].online = 0;
+
                     close(temp);
                     
                     broadcast(online_clients); // Broadcast the updated client list.

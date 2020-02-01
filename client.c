@@ -8,21 +8,24 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
-struct login {
-    int online;
-    char username[1024];
-    char password[1024];
-};
-
 struct peer {
     int peer_id;
     char ip[20];
     int port;
 };
 
+
+struct login {
+    int online;
+    char username[1024];
+    char password[1024];
+    struct peer addrs_info;
+};
+
+
 void display_online_peers(struct peer *peer_list) {
     printf("---------------------------------------------\n");
-    printf("PEERS ONLINE:\n");
+    printf("PEERS ONLINE:\n\n");
     for(int i=0; i<10; i++) {
         if(peer_list[i].peer_id != 0)
             printf("%d. PEER: %d IP: %s UDP_PORT: %d\n",i, peer_list[i].peer_id, peer_list[i].ip, peer_list[i].port);
@@ -30,7 +33,6 @@ void display_online_peers(struct peer *peer_list) {
     printf("---------------------------------------------\n");
 }
 
-// If the server broadcasts the tcp socket and ip, how will the peers talk on a udp conenction?
 
 int isPeer(struct peer peerlist[], struct peer peer) {
     // Determines if the new recieved peer is already in list or not.
@@ -47,7 +49,7 @@ int isNumber(char *buff) {
     buff[strlen(buff)-1] = '\0';
     int num, flag = 0;
     for(int j=0; j<strlen(buff); j++) {
-        if(buff[j] < '9' && buff[j] > '0')
+        if(buff[j] <= '9' && buff[j] >= '0')
             flag = 1;
         else {
             flag = 0;
@@ -110,7 +112,7 @@ void chat(int sock_id, struct peer other) {
 }
 
 void chat_recv(int sock_id) {
-    // A stupid char function
+    // A stupid chat function
 
     struct sockaddr_in store; int len_store = sizeof(store);
     
@@ -243,7 +245,7 @@ int main(int args, char *argv[]) {
         self_details.username[strlen(self_details.username)-1] = '\0';
         self_details.password[strlen(self_details.password)-1] = '\0';
 
-        printf("USRNAME: %s\nPASS: %s\n", self_details.username, self_details.password);
+    
         printf("Sending login details...\n");
         send_id = send(sock_id, &self_details, sizeof(self_details), 0);
         if(send_id == -1) {
@@ -306,8 +308,29 @@ int main(int args, char *argv[]) {
         }
 
         if(FD_ISSET(udp_sockid, &fd_arr)) {
-            printf("A peer is trying to chat...\n");
-            chat_recv(udp_sockid);
+
+            // struct sockaddr_in connecting_peer, src; int len_src = sizeof(src);
+            // recv_id = recvfrom(udp_sockid, &connecting_peer, sizeof(connecting_peer), 0, &src, &len_src);
+            // if(recv_id == -1) {
+            //     printf("Cannot receive connecting peer details!\n");
+            //     exit(1);
+            // }
+            
+            // char reply;
+            // printf("The following peer is trying to connect:\n");
+            // printf("PeerID: %d\n IP: %s\n PORT: %d\n", connecting_peer.peer_id, connecting_peer.ip, connecting_peer.port);
+            // printf("Accept the request? y/n\n");
+            // fgets(reply, 2, stdin);
+            // getchar();
+
+            // if(strcmp(reply, "y") == 0) {
+            //     printf("Request accepted. Waiting for the chat to begin...\n");
+            //     chat_recv(udp_sockid);
+            // }
+            // else if(strcmp(reply, "n") == 0) {
+
+            // }
+            
         }
 
         if(FD_ISSET(0, &fd_arr)) {
