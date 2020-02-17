@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#include "handle-files.c"
+
 #define TRUE 1
 #define FALSE 0
 
@@ -55,6 +57,19 @@ void usersOnlineDB(struct login database[], int database_counter) {
     }
     printf("---------------------------------------------\n");
 
+}
+
+int numUsersOnline(struct peer online_clients[]) {
+    // Returns the number of users online
+
+    int num_users_online = 0;
+    for(int i=0; i<10; i++) {
+
+        if(online_clients[i].peer_id != 0)
+            num_users_online++;
+    }
+
+    return num_users_online;
 }
 
 
@@ -290,21 +305,6 @@ int main(int args, char *argv[]) {
             }
 
             printf("Recieved UDP info for the client %d.\n", client_id);
-            // new_user.peer_id = client_id;
-            // strcpy(new_user.ip, inet_ntoa(udp_id.sin_addr));
-            // new_user.port = ntohs(udp_id.sin_port);
-
-            // for(int i=0; i<10; i++) { // Add the client list to online client_list.
-            //     if(online_clients[i].peer_id == 0) {
-            //         online_clients[i] = new_user;
-            //         break;
-            //     }
-            //     if(i == 9) {
-            //         printf("Online clients limit reached!\n");
-            //         exit(0);
-            //     }
-            // }
-          
 
             new_user_login.addrs_info.peer_id = client_id;
             strcpy(new_user_login.addrs_info.ip, inet_ntoa(udp_id.sin_addr));
@@ -358,7 +358,6 @@ int main(int args, char *argv[]) {
                         if(database[j].addrs_info.peer_id == temp)
                             break;
                     }
-                    printf("%d %d\n", online_clients[i].peer_id, database[j].addrs_info.peer_id);
                     online_clients[i].peer_id = 0; // Changing the status of the client to offline
                     database[j].online = 0;
 
@@ -369,11 +368,95 @@ int main(int args, char *argv[]) {
                     showDatabase(database, database_counter);
                     showOnlineClients(online_clients);
                 }
+
+                if(strcmp(buff, "upload") == 0) {
+                    printf("Client %d is uploading a file ...\n", online_clients[i].peer_id);
+                    char filename[256], final_name[1024], buffer[BUFSIZ], cmnd[20];
+                    bzero(filename, 256);
+                    bzero(final_name, 1024);
+                    bzero(cmnd, 20);
+
+                    recv_id = recv(online_clients[i].peer_id, filename, sizeof(filename), 0);
+                    if(recv_id == -1) {
+                        printf("Cannot recieve filename!\n");
+                        exit(1);
+                    }
+
+                    snprintf(final_name, sizeof(final_name), "%d_%s", online_clients[i].peer_id, filename);
+
+
+                    FILE* fp = fopen(final_name, "w");
+                    int recv_bytes = 0;  
+    
+                    if(fp == NULL) {
+                        printf("Cannot create file!\n");
+                        exit(1);
+                    }
+
+                    while( (recv_bytes = read(online_clients[i].peer_id, buffer, BUFSIZ))> 0 ) {
+                        printf("Bytes received %d\n", recv_bytes);
+                        fwrite(buffer, 1, recv_bytes, fp);
+                        if(recv_bytes < BUFSIZ)
+                            break;
+                    }
+
+                    if (recv_bytes < 0)
+                        perror("Receiving");
+
+                    fclose(fp);
+                    printf("File recieved.\n");
+                
+                    if(snprintf(cmnd, sizeof(cmnd), "chmod 777 %s", final_name) == -1) {
+                        printf("Snprintf error!\n");
+                        exit(1);
+                    }
+                    if(system(cmnd) == -1) {
+                        printf("Cannot grant access to the recieved file!\n");
+                        exit(1);
+                    }
+
+                    int num_users_online = numUsersOnline(online_clients);
+          
+                    split_file(final_name, 
+                        num_users_online, strlen(final_name));
+                    printf("File splitted.\n");
+            
+                }
+            }
+        }
+
+        if(FD_ISSET(0, &fd_arr)) {
+            bzero(buff, 100);
+            fgets(buff, 1024, stdin);
+
+            buff[strlen(buff)-1] = '\0';
+
+            if(strncmp(buff, "-sys ", 5) == 0) {
+                if(strlen(buff) < 5)
+                    printf("Message too small!\n");
+                else {
+                    char *msg = buff + 5;
+                    if(system(msg) == -1) {
+                        printf("Cannot execute system command!\n");
+                        exit(0);
+                    }
+                }
+            }
+            
+            else if(strcmp(buff, "exit") == 0) {
+                printf("Goodbye.\n");
+                for(int i=0; i<10; i++) {
+                    // Close all peer connections before exiting server
+                    if(online_clients[i].peer_id != 0)
+                        close(online_clients[i].peer_id);
+                }
+                close(sock_id);
+                exit(0);
             }
         }
     }
 
-
     close(sock_id);
+    
     return 0;
 }

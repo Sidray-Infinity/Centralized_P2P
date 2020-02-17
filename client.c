@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
+#include <fcntl.h>
 
 struct peer {
     int peer_id;
@@ -28,7 +31,8 @@ void display_online_peers(struct peer *peer_list) {
     printf("PEERS ONLINE:\n\n");
     for(int i=0; i<10; i++) {
         if(peer_list[i].peer_id != 0)
-            printf("%d. PEER: %d IP: %s UDP_PORT: %d\n",i, peer_list[i].peer_id, peer_list[i].ip, peer_list[i].port);
+            printf("%d. PEER: %d IP: %s UDP_PORT: %d\n",
+                    i, peer_list[i].peer_id, peer_list[i].ip, peer_list[i].port);
     }
     printf("---------------------------------------------\n");
 }
@@ -64,7 +68,7 @@ int isNumber(char *buff) {
 }
 
 void chat(int sock_id, struct peer other) {
-    // A stupid char function
+    // A stupid chat function
 
     struct sockaddr_in other_struct, store; int len_store = sizeof(store);
     other_struct.sin_family = AF_INET;
@@ -80,7 +84,8 @@ void chat(int sock_id, struct peer other) {
         printf("Enter a message to send:\n");
         fgets(buff, 1024, stdin);
 
-        int send_id = sendto(sock_id, buff, strlen(buff), 0, (struct sockaddr*)&other_struct, sizeof(other_struct));
+        int send_id = sendto(sock_id, buff, strlen(buff),
+                             0, (struct sockaddr*)&other_struct, sizeof(other_struct));
         if(send_id == -1) {
             printf("Cannot send the chat message!\n");
             exit(1);
@@ -94,7 +99,8 @@ void chat(int sock_id, struct peer other) {
         bzero(buff, 1024);
         printf("Waiting for a reply...\n");
 
-        int recv_id = recvfrom(sock_id, buff, sizeof(buff),0 ,(struct sockaddr*)&store,&len_store);
+        int recv_id = recvfrom(sock_id, buff, sizeof(buff),
+                                0 ,(struct sockaddr*)&store,&len_store);
         if(recv_id == -1) {
             printf("Cannot recieve the chat message:\n");
             exit(1);
@@ -112,7 +118,7 @@ void chat(int sock_id, struct peer other) {
 }
 
 void chat_recv(int sock_id) {
-    // A stupid chat function
+    // Another stupid chat function
 
     struct sockaddr_in store; int len_store = sizeof(store);
     
@@ -125,7 +131,8 @@ void chat_recv(int sock_id) {
         bzero(buff, 1024);
         printf("Waiting for a reply...\n");
 
-        int recv_id = recvfrom(sock_id, buff, sizeof(buff),0 ,(struct sockaddr*)&store,&len_store);
+        int recv_id = recvfrom(sock_id, buff, sizeof(buff),
+                                0 ,(struct sockaddr*)&store,&len_store);
         if(recv_id == -1) {
             printf("Cannot recieve the chat message:\n");
             exit(1);
@@ -142,7 +149,8 @@ void chat_recv(int sock_id) {
         printf("Enter a message to send:\n");
         fgets(buff, 1024, stdin);
 
-        int send_id = sendto(sock_id, buff, strlen(buff), 0, (struct sockaddr*)&store, sizeof(store));
+        int send_id = sendto(sock_id, buff, strlen(buff),
+                             0, (struct sockaddr*)&store, sizeof(store));
         if(send_id == -1) {
             printf("Cannot send the chat message!\n");
             exit(1);
@@ -155,6 +163,16 @@ void chat_recv(int sock_id) {
     }
     printf("---------------------------------------------\n"); 
     printf("---------------------------------------------\n");
+}
+
+long int findSize(const char *file_name)
+{
+    struct stat st;
+    
+    if(stat(file_name,&st)==0)
+        return (st.st_size);
+    else
+        return -1;
 }
 
 int main(int args, char *argv[]) {
@@ -275,6 +293,7 @@ int main(int args, char *argv[]) {
         goto login;
     }
     else if(strcmp(buff, "Username taken.") == 0) {
+        printf("Username taken. Enter another username ...\n");
         goto login;
     }
     else if(strcmp(buff, "Already logged in.") == 0) {
@@ -308,30 +327,23 @@ int main(int args, char *argv[]) {
         }
 
         if(FD_ISSET(udp_sockid, &fd_arr)) {
-
-            // struct sockaddr_in connecting_peer, src; int len_src = sizeof(src);
-            // recv_id = recvfrom(udp_sockid, &connecting_peer, sizeof(connecting_peer), 0, &src, &len_src);
-            // if(recv_id == -1) {
-            //     printf("Cannot receive connecting peer details!\n");
-            //     exit(1);
-            // }
             
-            // char reply;
-            // printf("The following peer is trying to connect:\n");
-            // printf("PeerID: %d\n IP: %s\n PORT: %d\n", connecting_peer.peer_id, connecting_peer.ip, connecting_peer.port);
-            // printf("Accept the request? y/n\n");
-            // fgets(reply, 2, stdin);
-            // getchar();
-
-            // if(strcmp(reply, "y") == 0) {
-            //     printf("Request accepted. Waiting for the chat to begin...\n");
-            //     chat_recv(udp_sockid);
-            // }
-            // else if(strcmp(reply, "n") == 0) {
-
-            // }
+            char request[20];
+            bzero(request, 20);
+            struct sockaddr_in connecting_peer, src; int len_src = sizeof(src);
+            recv_id = recvfrom(udp_sockid, request, sizeof(request),
+                                 0, (struct sockaddr*)&src, &len_src);
+            if(recv_id == -1) {
+                printf("Cannot receive connecting peer details!\n");
+                exit(1);
+            }
             
+            printf("Chat request recieved from:\n");
+            printf("IP %s PORT %d\n", inet_ntoa(src.sin_addr), src.sin_port);
+
+            chat_recv(udp_sockid);            
         }
+
 
         if(FD_ISSET(0, &fd_arr)) {
             bzero(buff, 100);
@@ -339,8 +351,23 @@ int main(int args, char *argv[]) {
             int input = isNumber(buff); 
             if(input  >= 0) {
                 printf("Peer %d selected for communication.\n", input);
-                printf("Intiating Chat:\n");
+                printf("IP: %s PORT: %d\n", peer_list[input].ip, peer_list[input].port);
+                printf("Initiating Chat ...\n");
+ 
+                struct sockaddr_in peer_struct, store; int len_store = sizeof(store);
+                peer_struct.sin_family = AF_INET;
+                peer_struct.sin_addr.s_addr = inet_addr(peer_list[input].ip);
+                peer_struct.sin_port = htons(peer_list[input].port);
+
+                send_id = sendto(udp_sockid, "CHAT", sizeof("CHAT"), 0, 
+                                    (struct sockaddr*)&peer_struct, sizeof(peer_struct));
+                if(send_id == -1) {
+                    printf("Cannot send peer connection request!\n");
+                    exit(1);
+                }
+
                 chat(udp_sockid, peer_list[input]);
+
             }
             else if(strncmp(buff, "-s ", 3) == 0) {
                 printf("Sending the message to the server...\n");
@@ -358,11 +385,62 @@ int main(int args, char *argv[]) {
                         printf("Closing the peer..\n");
                         exit(0);
                     }
+                    else if(strcmp(msg, "upload") == 0) {
+                        char filename[20], filesize[256], sendbuffer[BUFSIZ];
+                        int sent_bytes = 0;
+                        bzero(filename, 20);
+                        bzero(filesize, 256);
+                        
+
+                        printf("Enter file name:\n");
+                        fgets(filename, 20, stdin);
+                        filename[strlen(filename)-1] = '\0';
+
+                        send_id = send(sock_id, filename, strlen(filename), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send file name!\n");
+                            exit(1);
+                        }
+
+                        FILE *f = fopen(filename, "r ");
+                        if(f == NULL) {
+                            printf("File doesn't exist!\n");
+                            exit(1);
+                        }
+
+                        while(1) {
+                            bzero(sendbuffer, BUFSIZ);
+                            int nread = fread(sendbuffer, 1, BUFSIZ, f);
+                            printf("Bytes read %d \n", nread);
+                            if(nread > 0) {
+                                printf("Sending \n");
+                                write(sock_id, sendbuffer, nread);
+                            }
+                            else if(nread == 0)
+                                break;
+                        }
+
+                        printf("File uploaded.\n");
+
+                    }
+                }
+            }
+            else if(strncmp(buff, "-sys ", 5) == 0) {
+                printf("Executing system command ...\n");
+                if(strlen(buff) < 5)
+                    printf("Message too small!\n");
+                else {
+                    char *msg = buff + 5;
+                    if(system(msg) == -1) {
+                        printf("Cannot execute system command!\n");
+                        exit(0);
+                    }
                 }
             }
         }
     }
 
     close(sock_id);
+    close(udp_sockid);
     return 0;
 }    
