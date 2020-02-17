@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#include "handle-files.c"
+#include "handle_files.c"
 
 #define TRUE 1
 #define FALSE 0
@@ -18,12 +18,22 @@ struct peer {
     int port;
 };
 
-
 struct login {
     int online;
     char username[1024];
     char password[1024];
     struct peer addrs_info;
+};
+
+struct block {
+    char block_name[1024];
+    struct peer loc;
+    struct block *next;
+};
+
+struct file_node {
+    char filename[1024];
+    struct block *block_arr;
 };
 
 void showDatabase(struct login database[], int database_counter) {
@@ -113,19 +123,84 @@ int authenticate_login(struct login user, struct login *database, int database_c
     return -1;
 }
 
-void broadcast(struct peer online_clients[]) {
-    // Broadcasts the new user's ip and port to all online users
+void braodcast_peerlist(struct peer online_clients[]) {
+    // braodcast_peerlists the new user's ip and port to all online users
 
-    printf("Initiating Broadcasting:\n");
+    printf("Initiating braodcast_peerlisting:\n");
     int send_id;
     for(int i=0; i<10; i++) {
         if(online_clients[i].peer_id != 0) {
+
+            send_id = send(online_clients[i].peer_id, "PeerUpdate", strlen("PeerUpdate"), 0);
+            if(send_id == -1) {
+                printf("Cannot send communication type!\n");
+                exit(1);
+            } 
+
             send_id = send(online_clients[i].peer_id, online_clients, 10*sizeof(struct peer), 0);
             if(send_id == -1) {
-                printf("Problem in broadcast!\n");
+                printf("Problem in braodcast_peerlist!\n");
                 exit(1);
             } 
         }
+    }
+}
+
+void show_block_locations(struct file_node DHT[], int index) {
+    // Displays the location of each block associated with a file
+
+    printf("---------------------------------------------\n");
+    printf("FILE: %s\n", DHT[index].filename);
+    for(struct block *q = DHT[index].block_arr; q != NULL; q = q->next) {
+        printf("BLOCK NAME: %s LOC:", q->block_name);
+        printf(" IP: %s PORT: %d\n", q->loc.ip, q->loc.port);
+    }
+    printf("---------------------------------------------\n");
+}
+
+void upload_to_clients(struct file_node DHT[], int index) {
+    // Uploads each block to it's respective peer to be stored.
+
+    int send_id;
+    FILE *f;
+    char sendbuffer[BUFSIZ];
+    for(struct block *q = DHT[index].block_arr; q != NULL; q = q->next) {
+        send_id = send(q->loc.peer_id, "BlockUpload", strlen("BlockUpload"), 0);
+        if(send_id == -1) {
+                printf("Cannot send communication type!\n");
+                exit(1);
+        }
+
+        char filesize[256], sendbuffer[BUFSIZ];
+        int sent_bytes = 0;
+        bzero(filesize, 256);
+        
+        send_id = send(q->loc.peer_id, q->block_name, strlen(q->block_name), 0);
+        if(send_id == -1) {
+            printf("Cannot send file name!\n");
+            exit(1);
+        }
+
+        FILE *f = fopen(q->block_name, "r ");
+        if(f == NULL) {
+            printf("Block doesn't exist!\n");
+            exit(1);
+        }
+
+        while(1) {
+            bzero(sendbuffer, BUFSIZ);
+            int nread = fread(sendbuffer, 1, BUFSIZ, f);
+            printf("Bytes read %d \n", nread);
+            if(nread > 0) {
+                printf("Sending \n");
+                write(q->loc.peer_id, sendbuffer, nread);
+            }
+            else if(nread == 0)
+                break;
+        }
+
+        printf("Block uploaded to IP: %s PORT: %d\n", q->loc.ip, q->loc.port);
+
     }
 }
 
@@ -164,6 +239,8 @@ int main(int args, char *argv[]) {
     int maxfds = sock_id;
     char buff[1024];
     fd_set fd_arr;
+
+    struct file_node DHT[100]; // The server can handle at most 100 files
 
     struct peer online_clients[10]; // Maximum 10 peers can be online
     for(int i=0; i<10; i++)
@@ -332,7 +409,7 @@ int main(int args, char *argv[]) {
                 database[auth_stat].addrs_info.port = ntohs(udp_id.sin_port);
             }
           
-            broadcast(online_clients);
+            braodcast_peerlist(online_clients);
 
             showDatabase(database, database_counter);
             showOnlineClients(online_clients);
@@ -363,7 +440,7 @@ int main(int args, char *argv[]) {
 
                     close(temp);
                     
-                    broadcast(online_clients); // Broadcast the updated client list.
+                    braodcast_peerlist(online_clients); // braodcast_peerlist the updated client list.
 
                     showDatabase(database, database_counter);
                     showOnlineClients(online_clients);
@@ -371,7 +448,7 @@ int main(int args, char *argv[]) {
 
                 if(strcmp(buff, "upload") == 0) {
                     printf("Client %d is uploading a file ...\n", online_clients[i].peer_id);
-                    char filename[256], final_name[1024], buffer[BUFSIZ], cmnd[20];
+                    char filename[256], final_name[1024], copy_final_name[1024], buffer[BUFSIZ], cmnd[20];
                     bzero(filename, 256);
                     bzero(final_name, 1024);
                     bzero(cmnd, 20);
@@ -384,15 +461,18 @@ int main(int args, char *argv[]) {
 
                     snprintf(final_name, sizeof(final_name), "%d_%s", online_clients[i].peer_id, filename);
 
+                    strcpy(copy_final_name, final_name);
+                    char *file = strtok(copy_final_name, ".");
+                    char *fileformat = strtok(NULL, ".");
 
                     FILE* fp = fopen(final_name, "w");
-                    int recv_bytes = 0;  
-    
                     if(fp == NULL) {
                         printf("Cannot create file!\n");
                         exit(1);
                     }
-
+                    
+                    int recv_bytes = 0;  
+    
                     while( (recv_bytes = read(online_clients[i].peer_id, buffer, BUFSIZ))> 0 ) {
                         printf("Bytes received %d\n", recv_bytes);
                         fwrite(buffer, 1, recv_bytes, fp);
@@ -405,22 +485,59 @@ int main(int args, char *argv[]) {
 
                     fclose(fp);
                     printf("File recieved.\n");
-                
-                    if(snprintf(cmnd, sizeof(cmnd), "chmod 777 %s", final_name) == -1) {
-                        printf("Snprintf error!\n");
-                        exit(1);
-                    }
-                    if(system(cmnd) == -1) {
-                        printf("Cannot grant access to the recieved file!\n");
-                        exit(1);
-                    }
+                            
+                    // if(snprintf(cmnd, sizeof(cmnd), "chmod 777 %s", final_name) == -1) {
+                    //     printf("Snprintf error!\n");
+                    //     exit(1);
+                    // }
+                    // if(system(cmnd) == -1) {
+                    //     printf("Cannot grant access to the recieved file!\n");
+                    //     exit(1);
+                    // }
 
                     int num_users_online = numUsersOnline(online_clients);
           
                     split_file(final_name, 
                         num_users_online, strlen(final_name));
                     printf("File splitted.\n");
-            
+
+                    int index = hash_filename(final_name);
+                    strcpy(DHT[index].filename, final_name);
+                    DHT[index].block_arr = NULL;
+
+                    char block_name[1024];
+
+                    // Number of blocks will be equal to the number of online clients.
+                    int block_count = 0;
+                    for(int i=0; i<10; i++) {
+                        if(online_clients[i].peer_id != 0) {
+                            bzero(block_name, 1024);
+                            
+                            if(block_count < 10)
+                                snprintf(block_name, sizeof(block_name), "%s0%d.%s",file, block_count, fileformat);
+                            else
+                                snprintf(block_name, sizeof(block_name), "%s%d.%s",file, block_count, fileformat);
+                            block_count++;
+                            
+                            struct block *new_block = (struct block*)malloc(sizeof(struct block));
+                            strcpy(new_block->block_name, block_name);
+                            new_block->loc = online_clients[i];
+                            new_block->next = NULL;
+
+                            if(DHT[index].block_arr == NULL)
+                                DHT[index].block_arr = new_block;
+                            else {
+                                struct block *q = DHT[index].block_arr;
+                                while(q->next != NULL)
+                                    q = q->next;
+                                q->next = new_block;
+                            }
+                        }
+                    }
+
+                    show_block_locations(DHT, index);
+                    upload_to_clients(DHT, index);
+
                 }
             }
         }

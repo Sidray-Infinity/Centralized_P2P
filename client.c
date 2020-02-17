@@ -316,14 +316,60 @@ int main(int args, char *argv[]) {
         }
 
         if(FD_ISSET(sock_id, &fd_arr)) {
-            printf("Recieved a peer list update:\n");
-            struct peer new_user;
-            recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), 0);
+
+            bzero(buff, 1024);
+            recv_id = recv(sock_id, buff, sizeof(buff), 0);
             if(recv_id == -1) {
-                printf("Cannot recieve new peer update!\n");
+                printf("Cannot recieve communication type from server!\n");
                 exit(1);
             }
-            display_online_peers(peer_list);
+
+            if(strcmp(buff, "PeerUpdate") == 0) {
+                printf("Recieved a peer list update:\n");
+                struct peer new_user;
+                recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), 0);
+                if(recv_id == -1) {
+                    printf("Cannot recieve new peer update!\n");
+                    exit(1);
+                }
+                display_online_peers(peer_list);
+            }
+            else if(strcmp(buff, "BlockUpload") == 0) {
+                
+                char filename[256], buffer[BUFSIZ], cmnd[20];
+                bzero(filename, 256);
+        
+                bzero(cmnd, 20);
+
+                recv_id = recv(sock_id, filename, sizeof(filename), 0);
+                if(recv_id == -1) {
+                    printf("Cannot recieve filename!\n");
+                    exit(1);
+                }
+
+
+                FILE* fp = fopen(filename, "w");
+                if(fp == NULL) {
+                    printf("Cannot create file!\n");
+                    exit(1);
+                }
+
+                int recv_bytes = 0;  
+
+                while( (recv_bytes = read(sock_id, buffer, BUFSIZ))> 0 ) {
+                    printf("Bytes received %d\n", recv_bytes);
+                    fwrite(buffer, 1, recv_bytes, fp);
+                    if(recv_bytes < BUFSIZ)
+                        break;
+                }
+
+                if (recv_bytes < 0)
+                    perror("Receiving");
+
+                fclose(fp);
+                printf("Block recieved.\n");
+
+            }
         }
 
         if(FD_ISSET(udp_sockid, &fd_arr)) {

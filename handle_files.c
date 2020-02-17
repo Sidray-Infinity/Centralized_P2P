@@ -2,6 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+unsigned long hash_filename(unsigned char *str) {
+    // Creates a hash key for a filename
+    unsigned long hash = 5381;
+    int c;
+
+    while (c = *str++) {
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
+
+    return hash%100;
+}
 
 void split_file(char *addrs, int num_blocks, int str_len) {
     int sprint_stat;
