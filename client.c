@@ -318,22 +318,30 @@ int main(int args, char *argv[]) {
         if(FD_ISSET(sock_id, &fd_arr)) {
 
             bzero(buff, 1024);
-            recv_id = recv(sock_id, buff, sizeof(buff), 0);
+            recv_id = recv(sock_id, buff, sizeof(buff), MSG_DONTWAIT);
             if(recv_id == -1) {
                 printf("Cannot recieve communication type from server!\n");
                 exit(1);
             }
 
+            send_id = send(sock_id, "ACK", strlen("ACK"), 0);
+            if(send_id == -1) {
+                printf("Cannot send acknowledgment!\n");
+                exit(1);
+            }
+
             if(strcmp(buff, "PeerUpdate") == 0) {
                 printf("Recieved a peer list update:\n");
-                struct peer new_user;
-                recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), 0);
+
+                recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), MSG_WAITALL);
                 if(recv_id == -1) {
                     printf("Cannot recieve new peer update!\n");
                     exit(1);
                 }
+                printf("Recieved update\n");
                 display_online_peers(peer_list);
             }
+
             else if(strcmp(buff, "BlockUpload") == 0) {
                 
                 char filename[256], buffer[BUFSIZ], cmnd[20];
@@ -347,6 +355,7 @@ int main(int args, char *argv[]) {
                     exit(1);
                 }
 
+                printf("RECIEVING BLOCK NAME: %s\n", filename);
 
                 FILE* fp = fopen(filename, "w");
                 if(fp == NULL) {
@@ -357,7 +366,6 @@ int main(int args, char *argv[]) {
                 int recv_bytes = 0;  
 
                 while( (recv_bytes = read(sock_id, buffer, BUFSIZ))> 0 ) {
-                    printf("Bytes received %d\n", recv_bytes);
                     fwrite(buffer, 1, recv_bytes, fp);
                     if(recv_bytes < BUFSIZ)
                         break;
@@ -457,9 +465,7 @@ int main(int args, char *argv[]) {
                         while(1) {
                             bzero(sendbuffer, BUFSIZ);
                             int nread = fread(sendbuffer, 1, BUFSIZ, f);
-                            printf("Bytes read %d \n", nread);
                             if(nread > 0) {
-                                printf("Sending \n");
                                 write(sock_id, sendbuffer, nread);
                             }
                             else if(nread == 0)

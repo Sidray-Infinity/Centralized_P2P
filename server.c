@@ -127,17 +127,25 @@ void braodcast_peerlist(struct peer online_clients[]) {
     // braodcast_peerlists the new user's ip and port to all online users
 
     printf("Initiating braodcast_peerlisting:\n");
-    int send_id;
+    int send_id, recv_id;
+    char reply[1024];
+
     for(int i=0; i<10; i++) {
         if(online_clients[i].peer_id != 0) {
-
-            send_id = send(online_clients[i].peer_id, "PeerUpdate", strlen("PeerUpdate"), 0);
+            send_id = send(online_clients[i].peer_id, "PeerUpdate", strlen("PeerUpdate"), MSG_DONTWAIT);
             if(send_id == -1) {
                 printf("Cannot send communication type!\n");
                 exit(1);
             } 
 
-            send_id = send(online_clients[i].peer_id, online_clients, 10*sizeof(struct peer), 0);
+            bzero(reply, 1024);
+            recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+            if(recv_id == -1) {
+                printf("Cannot recieve acknowledgement!\n");
+                exit(1);
+            }
+
+            send_id = send(online_clients[i].peer_id, online_clients, 10*sizeof(struct peer), MSG_WAITALL);
             if(send_id == -1) {
                 printf("Problem in braodcast_peerlist!\n");
                 exit(1);
@@ -161,14 +169,21 @@ void show_block_locations(struct file_node DHT[], int index) {
 void upload_to_clients(struct file_node DHT[], int index) {
     // Uploads each block to it's respective peer to be stored.
 
-    int send_id;
+    int send_id, recv_id;
     FILE *f;
-    char sendbuffer[BUFSIZ];
+    char sendbuffer[BUFSIZ], reply[1024];
     for(struct block *q = DHT[index].block_arr; q != NULL; q = q->next) {
         send_id = send(q->loc.peer_id, "BlockUpload", strlen("BlockUpload"), 0);
         if(send_id == -1) {
                 printf("Cannot send communication type!\n");
                 exit(1);
+        }
+
+        bzero(reply, 1024);
+        recv_id = recv(q->loc.peer_id, reply, sizeof(reply), 0);
+        if(recv_id == -1) {
+            printf("Cannot recieve filename!\n");
+            exit(1);
         }
 
         char filesize[256], sendbuffer[BUFSIZ];
@@ -190,9 +205,7 @@ void upload_to_clients(struct file_node DHT[], int index) {
         while(1) {
             bzero(sendbuffer, BUFSIZ);
             int nread = fread(sendbuffer, 1, BUFSIZ, f);
-            printf("Bytes read %d \n", nread);
             if(nread > 0) {
-                printf("Sending \n");
                 write(q->loc.peer_id, sendbuffer, nread);
             }
             else if(nread == 0)
@@ -202,6 +215,37 @@ void upload_to_clients(struct file_node DHT[], int index) {
         printf("Block uploaded to IP: %s PORT: %d\n", q->loc.ip, q->loc.port);
 
     }
+}
+
+void remove_from_server(struct file_node DHT[], int index) {
+    // Remove the file and it's blocks from the server
+    
+    int snprint_stat;
+    char cmnd[1024];
+    bzero(cmnd, 1024);
+
+    snprint_stat = snprintf(cmnd, sizeof(cmnd), "rm %s", DHT[index].filename);
+    if(snprint_stat == -1) {
+        printf("Snprintf error!\n");
+        exit(1);
+    }
+    if(system(cmnd) == -1) {
+        printf("Cannot remove the file!\n");
+        exit(1);
+    }
+
+    for(struct block *q = DHT[index].block_arr; q != NULL; q = q->next) {
+        snprint_stat = snprintf(cmnd, sizeof(cmnd), "rm %s", q->block_name);
+        if(snprint_stat == -1) {
+            printf("Snprintf error!\n");
+            exit(1);
+        }
+        if(system(cmnd) == -1) {
+            printf("Cannot remove the block %s!\n", q->block_name);
+            exit(1);
+        }
+    }
+    printf("Files and their blocks removed from server.\n");
 }
 
 int main(int args, char *argv[]) {
@@ -448,7 +492,7 @@ int main(int args, char *argv[]) {
 
                 if(strcmp(buff, "upload") == 0) {
                     printf("Client %d is uploading a file ...\n", online_clients[i].peer_id);
-                    char filename[256], final_name[1024], copy_final_name[1024], buffer[BUFSIZ], cmnd[20];
+                    char filename[256], final_name[1024], copy_final_name1[1024], copy_final_name2[1024], buffer[BUFSIZ], cmnd[20];
                     bzero(filename, 256);
                     bzero(final_name, 1024);
                     bzero(cmnd, 20);
@@ -461,8 +505,9 @@ int main(int args, char *argv[]) {
 
                     snprintf(final_name, sizeof(final_name), "%d_%s", online_clients[i].peer_id, filename);
 
-                    strcpy(copy_final_name, final_name);
-                    char *file = strtok(copy_final_name, ".");
+                    strcpy(copy_final_name1, final_name);
+                    strcpy(copy_final_name2, final_name);
+                    char *file = strtok(copy_final_name1, ".");
                     char *fileformat = strtok(NULL, ".");
 
                     FILE* fp = fopen(final_name, "w");
@@ -474,7 +519,6 @@ int main(int args, char *argv[]) {
                     int recv_bytes = 0;  
     
                     while( (recv_bytes = read(online_clients[i].peer_id, buffer, BUFSIZ))> 0 ) {
-                        printf("Bytes received %d\n", recv_bytes);
                         fwrite(buffer, 1, recv_bytes, fp);
                         if(recv_bytes < BUFSIZ)
                             break;
@@ -485,15 +529,6 @@ int main(int args, char *argv[]) {
 
                     fclose(fp);
                     printf("File recieved.\n");
-                            
-                    // if(snprintf(cmnd, sizeof(cmnd), "chmod 777 %s", final_name) == -1) {
-                    //     printf("Snprintf error!\n");
-                    //     exit(1);
-                    // }
-                    // if(system(cmnd) == -1) {
-                    //     printf("Cannot grant access to the recieved file!\n");
-                    //     exit(1);
-                    // }
 
                     int num_users_online = numUsersOnline(online_clients);
           
@@ -501,8 +536,8 @@ int main(int args, char *argv[]) {
                         num_users_online, strlen(final_name));
                     printf("File splitted.\n");
 
-                    int index = hash_filename(final_name);
-                    strcpy(DHT[index].filename, final_name);
+                    int index = hash_filename(copy_final_name2);
+                    strcpy(DHT[index].filename, copy_final_name2);
                     DHT[index].block_arr = NULL;
 
                     char block_name[1024];
@@ -537,7 +572,8 @@ int main(int args, char *argv[]) {
 
                     show_block_locations(DHT, index);
                     upload_to_clients(DHT, index);
-
+                    remove_from_server(DHT, index);
+                    
                 }
             }
         }

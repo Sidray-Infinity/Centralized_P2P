@@ -15,6 +15,6 @@ unsigned long hash_filename(unsigned char *str)
 
 int main() {
     printf("Test\n");
-    printf("%ld", hash("test.c"));
+    printf("%ld", hash_filename("test.c"));
     return 0;
 }
