@@ -1,0 +1,14 @@
+** 
+   * So the block splitting and transfer to peers is working well,
+     atleast for the first file.
+   * The final file name for the second file to be uploaded is somehow changed.
+   * Debugg the uability to upload second file.
+
+**
+   * Need to find a way to share the "BLOC LOC TABLE" with all the users.
+   * Each peer with a copy of the table is very "blockchain" in nature.
+     Maybe want to avoid it.
+   * Thinking of making a single copy of the table with the server.
+   * The peer can request to view the table at any time.
+   * The server will respond with the filenames, from which, the peer can
+     select the file to download.

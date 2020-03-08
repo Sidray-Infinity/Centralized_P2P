@@ -20,18 +20,23 @@ void split_file(char *addrs, int num_blocks, int str_len) {
     bzero(cmnd, 1024);
 
     char orig_name[str_len];
-    for(int i=0; i<str_len; i++) 
-        orig_name[i] = addrs[i];
+    bzero(orig_name, str_len);
 
-    char *fileformat = strtok(addrs, ".");
-    fileformat = strtok(NULL, ".");
+    // for(int i=0; i<str_len; i++) 
+    //     orig_name[i] = addrs[i];
+
+    strcpy(orig_name, addrs);
+
+    // char *fileformat = strtok(addrs, ".");
+    // fileformat = strtok(NULL, ".");
 
     sprint_stat = snprintf(cmnd, sizeof(cmnd), 
-        "split %s %s -n %d -d --additional-suffix=.%s --verbose", orig_name, addrs, num_blocks, fileformat);
+        "split %s %s -n %d -d", orig_name, addrs, num_blocks);
     if(sprint_stat == -1) {
         printf("Snprintf error!\n");
         exit(1);
     }
+    // printf("CMND: %s\n", cmnd);
     int sys_stat = system(cmnd);
     if(sys_stat == -1) {
         printf("Cannot execute split-file command!\n");

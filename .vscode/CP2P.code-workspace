@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "/home/siddharth/Work/CN/Centralized_P2P"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"inet.h": "c"
+		}
+	}
+}

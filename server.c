@@ -82,7 +82,6 @@ int numUsersOnline(struct peer online_clients[]) {
     return num_users_online;
 }
 
-
 int userNameTaken(struct login user, struct login database[], int database_counter) {
     // Determines if the username is already taken or not
 
@@ -91,7 +90,6 @@ int userNameTaken(struct login user, struct login database[], int database_count
             return 1;
     return 0;
 }
-
 
 void showOnlineClients(struct peer online_clients[]) {
     // Shows the list of all online clients
@@ -106,7 +104,6 @@ void showOnlineClients(struct peer online_clients[]) {
     printf("---------------------------------------------\n");
         
 }
-
 
 int authenticate_login(struct login user, struct login *database, int database_counter) {
     // Authenticates the login details provided by the user.
@@ -247,6 +244,59 @@ void remove_from_server(struct file_node DHT[], int index) {
     }
     printf("Files and their blocks removed from server.\n");
 }
+
+void show_DHT(struct file_node DHT[]) {
+    printf("---------------------------------------------\n");
+    printf("BLOCK DISTRIBUTION TABLE\n\n");
+    for(int i=0; i<100; i++) {
+        if(DHT[i].block_arr != NULL) {
+            printf("FILENAME: %s\n", DHT[i].filename);
+            for(struct block *q = DHT[i].block_arr; q != NULL; q = q->next)
+                printf("\tBLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port);
+        }
+    }
+    printf("---------------------------------------------\n");
+}
+
+void send_table_to_client(struct file_node DHT[], struct peer client) {
+    char msg[2048], reply[1024], block_info[1024];
+    int file_count = 0, send_id, recv_id, index_list[100];
+
+    for(int i=0; i<100; i++)
+        if(DHT[i].block_arr != NULL)
+            index_list[file_count++] = i;
+
+    // send_id = send(client.peer_id, &file_count, sizeof(file_count), 0);
+    // if(send_id == -1) {
+    //     printf("Cannot send file count!\n");
+    //     exit(1);
+    // }
+
+    // bzero(reply, 1024);
+    // recv_id = recv(client.peer_id, reply, sizeof(reply), 0);
+    // if(recv_id == -1) {
+    //     printf("Cannot recieve acknowledgement from the client!\n");
+    //     exit(1);
+    // }
+
+    for(int i=0; i<file_count; i++) {
+        bzero(msg, 2048);
+        if(snprintf(msg, sizeof(msg), "FILENAME: %s\n", DHT[index_list[i]].filename) == -1) {
+            printf("SNprint error!\n");
+            exit(1);
+        }
+        for(struct block *q = DHT[index_list[i]].block_arr; q != NULL; q = q->next) {
+            bzero(block_info, 1024);
+            if(snprintf(block_info, sizeof(block_info), "\tBLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port) == -1) {
+                printf("Snprint error!\n");
+                exit(1);
+            }
+            strcat(msg, block_info);
+        }
+        printf("%s", msg);
+    }
+}
+
 
 int main(int args, char *argv[]) {
 
@@ -507,8 +557,8 @@ int main(int args, char *argv[]) {
 
                     strcpy(copy_final_name1, final_name);
                     strcpy(copy_final_name2, final_name);
-                    char *file = strtok(copy_final_name1, ".");
-                    char *fileformat = strtok(NULL, ".");
+                    // char *file = strtok(copy_final_name1, ".");
+                    // char *fileformat = strtok(NULL, ".");
 
                     FILE* fp = fopen(final_name, "w");
                     if(fp == NULL) {
@@ -531,6 +581,9 @@ int main(int args, char *argv[]) {
                     printf("File recieved.\n");
 
                     int num_users_online = numUsersOnline(online_clients);
+
+                    printf("FINAL NAME: %s\n", final_name);
+                    // printf("FINAL NAME LEN: %ld\n", strlen(final_name));
           
                     split_file(final_name, 
                         num_users_online, strlen(final_name));
@@ -540,6 +593,8 @@ int main(int args, char *argv[]) {
                     strcpy(DHT[index].filename, copy_final_name2);
                     DHT[index].block_arr = NULL;
 
+                    printf("COPY FINAL NAME 2: %s\n", copy_final_name2);
+
                     char block_name[1024];
 
                     // Number of blocks will be equal to the number of online clients.
@@ -548,12 +603,22 @@ int main(int args, char *argv[]) {
                         if(online_clients[i].peer_id != 0) {
                             bzero(block_name, 1024);
                             
-                            if(block_count < 10)
-                                snprintf(block_name, sizeof(block_name), "%s0%d.%s",file, block_count, fileformat);
-                            else
-                                snprintf(block_name, sizeof(block_name), "%s%d.%s",file, block_count, fileformat);
+                            if(block_count < 10) {
+                                if(snprintf(block_name, sizeof(block_name), "%s0%d",copy_final_name2, block_count) == -1) {
+                                    printf("Snprintf problem!\n");
+                                    exit(1);
+                                }
+                            }
+                            else {
+                                if(snprintf(block_name, sizeof(block_name), "%s%d",copy_final_name2, block_count) == -1) {
+                                    printf("Snprintf problem!\n");
+                                    exit(1);
+                                }
+                            }
                             block_count++;
                             
+                            printf("BLOCK NAME: %s\n", block_name);
+
                             struct block *new_block = (struct block*)malloc(sizeof(struct block));
                             strcpy(new_block->block_name, block_name);
                             new_block->loc = online_clients[i];
@@ -570,10 +635,14 @@ int main(int args, char *argv[]) {
                         }
                     }
 
-                    show_block_locations(DHT, index);
+                    //show_DHT(DHT);
+                    send_table_to_client(DHT, online_clients[i]);
                     upload_to_clients(DHT, index);
                     remove_from_server(DHT, index);
                     
+                }
+                else if(strcmp(buff, "file-table") == 0) {
+
                 }
             }
         }

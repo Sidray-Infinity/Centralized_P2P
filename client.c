@@ -25,6 +25,18 @@ struct login {
     struct peer addrs_info;
 };
 
+struct block {
+    char block_name[1024];
+    struct peer loc;
+    struct block *next;
+};
+
+struct file_node {
+    char filename[1024];
+    struct block *block_arr;
+};
+
+
 
 void display_online_peers(struct peer *peer_list) {
     printf("---------------------------------------------\n");
@@ -474,6 +486,9 @@ int main(int args, char *argv[]) {
 
                         printf("File uploaded.\n");
 
+                    }
+                    else if(strcmp(msg, "file-table") == 0) {
+                        
                     }
                 }
             }
