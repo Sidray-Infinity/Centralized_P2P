@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 #include <fcntl.h>
+#include <netinet/tcp.h>
 
 struct peer {
     int peer_id;
@@ -33,6 +34,7 @@ struct block {
 
 struct file_node {
     char filename[1024];
+    int num_blocks;
     struct block *block_arr;
 };
 
@@ -202,6 +204,18 @@ int main(int args, char *argv[]) {
         exit(1);
     }
 
+    // Disabling Nagle's algorithm
+    // int flag = 1;
+    // int result = setsockopt(sock_id,            /* socket affected */
+    //                         IPPROTO_TCP,     /* set option at TCP level */
+    //                         TCP_NODELAY,     /* name of option */
+    //                         (char *) &flag,  /* the cast is historical cruft */
+    //                         sizeof(int));    /* length of option value */
+    // if (result < 0) {
+    //     printf("Cannot disable Nagle's algo!\n");
+    //     exit(1);
+    // }
+
     // Opening a UDP connection for the client at a predifiend port.
     int udp_sockid = socket(AF_INET, SOCK_DGRAM, 0);
     if(udp_sockid == -1) {
@@ -330,7 +344,7 @@ int main(int args, char *argv[]) {
         if(FD_ISSET(sock_id, &fd_arr)) {
 
             bzero(buff, 1024);
-            recv_id = recv(sock_id, buff, sizeof(buff), MSG_DONTWAIT);
+            recv_id = recv(sock_id, buff, sizeof(buff), 0);
             if(recv_id == -1) {
                 printf("Cannot recieve communication type from server!\n");
                 exit(1);
@@ -345,7 +359,7 @@ int main(int args, char *argv[]) {
             if(strcmp(buff, "PeerUpdate") == 0) {
                 printf("Recieved a peer list update:\n");
 
-                recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), MSG_WAITALL);
+                recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), 0);
                 if(recv_id == -1) {
                     printf("Cannot recieve new peer update!\n");
                     exit(1);
@@ -452,11 +466,13 @@ int main(int args, char *argv[]) {
                         exit(0);
                     }
                     else if(strcmp(msg, "upload") == 0) {
-                        char filename[20], filesize[256], sendbuffer[BUFSIZ];
+                 
+                        char filename[20], filesize[256], 
+                             sendbuffer[BUFSIZ], ack[3];
                         int sent_bytes = 0;
                         bzero(filename, 20);
                         bzero(filesize, 256);
-                        
+                        bzero(ack, 3);                        
 
                         printf("Enter file name:\n");
                         fgets(filename, 20, stdin);
@@ -467,6 +483,19 @@ int main(int args, char *argv[]) {
                             printf("Cannot send file name!\n");
                             exit(1);
                         }
+
+                        printf("File name sent.\n");
+
+                        // recv_id = recv(sock_id, ack, 3, 0);
+                        // if(recv_id == -1) {
+                        //     printf("Cannot recieve ACK for filename!\n");
+                        //     exit(1);
+                        // }
+
+                        // if(strcmp(ack, "ACK") != 0) {
+                        //     printf("Invalid reply from server!\n");
+                        //     continue;
+                        // }
 
                         FILE *f = fopen(filename, "r ");
                         if(f == NULL) {
@@ -488,7 +517,116 @@ int main(int args, char *argv[]) {
 
                     }
                     else if(strcmp(msg, "file-table") == 0) {
-                        
+                        int file_count = 0;
+                        char filename[20];
+    
+                        recv_id = recv(sock_id, &file_count, sizeof(int), 0);
+                        if(recv_id == -1) {
+                            printf("Cannot recieve number of files!\n");
+                            exit(1);
+                        }
+
+                        printf("FILE COUNT: %d\n", file_count);
+
+                        send_id = send(sock_id, "ACK", strlen("ACK"), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send ACK!\n");
+                            exit(1);
+                        }
+
+                        char **filenames = (char **)malloc(file_count*sizeof(char *));
+                        for(int i=0; i<file_count; i++)
+                            filenames[i] = (char *)malloc(20*sizeof(char));
+
+                        for(int i=0; i<file_count; i++) {
+                            bzero(filename, 20);
+
+                            recv_id = recv(sock_id, filename, sizeof(filename), 0);
+                            if(recv_id == -1) {
+                                printf("Cannot recieve filename!\n");
+                                exit(1);
+                            }
+          
+                            send_id = send(sock_id, "ACK", strlen("ACK"), 0);
+                            if(send_id == -1) {
+                                printf("Cannot send ACK for filename!\n");
+                                exit(1);
+                            }
+
+                            strcpy(filenames[i], filename);
+                        }
+
+                        printf("-----------------------------------\n");
+                        printf("FILE LIST:\n");
+                        for(int i=0; i<file_count; i++)
+                            printf("%d. %s\n", i+1, filenames[i]);
+
+                        free(filenames);
+                        printf("-----------------------------------\n");
+                    }
+                    else if(strcmp(msg, "download") == 0) {
+                        char filename[20];
+                        int numblocks;
+                        bzero(filename, 20);
+
+                        printf("Enter the file to be downloaded:\n");
+                        fgets(filename, 20, stdin);
+
+                        send_id = send(sock_id, filename, strlen(filename), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send filename to be downloaded!\n");
+                            exit(1);
+                        }
+
+                        recv_id = recv(sock_id, &numblocks, sizeof(int), 0);
+                        if(recv_id == -1) {
+                            printf("Cannot recieve number of blocks!\n");
+                            exit(1);
+                        }
+
+                        send_id = send(sock_id, "ACK", strlen("ACK"), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send ACK for filename!\n");
+                            exit(1);
+                        }
+
+                        if(numblocks == -1) {
+                            printf("File not found!\n");
+                            continue;
+                        }
+
+                        struct block **blocks_list = (struct block **)malloc(numblocks*sizeof(struct block *));
+                        for(int i=0; i<numblocks; i++)
+                            blocks_list[i] = (struct block *)malloc(sizeof(struct block));
+
+                        struct block *temp = (struct block *)malloc(sizeof(struct block));
+                        for(int i=0; i<numblocks; i++) {
+
+                            printf("I: %d\n", i);
+                            
+                            recv_id = recv(sock_id, temp, sizeof(struct block), 0);
+                            if(recv_id == -1) {
+                                printf("Cannot recieve filename!\n");
+                                exit(1);
+                            }
+          
+                            send_id = send(sock_id, "ACK", strlen("ACK"), 0);
+                            if(send_id == -1) {
+                                printf("Cannot send ACK for filename!\n");
+                                exit(1);
+                            }
+
+                            blocks_list[i] = temp;
+                            // free(temp);
+                        }
+
+                        printf("-----------------------------------\n");
+                        printf("BLOCK LIST:\n");
+                        for(int i=0; i<numblocks; i++) {
+                            printf("BLOCK NAME: %s LOC:", blocks_list[i]->block_name);
+                            printf(" IP: %s PORT: %d\n", blocks_list[i]->loc.ip, blocks_list[i]->loc.port);
+                        }
+                        printf("-----------------------------------\n");
                     }
                 }
             }
@@ -510,4 +648,4 @@ int main(int args, char *argv[]) {
     close(sock_id);
     close(udp_sockid);
     return 0;
-}    
+}

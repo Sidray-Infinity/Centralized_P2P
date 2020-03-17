@@ -6,7 +6,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-
+#include <netinet/tcp.h>
 #include "handle_files.c"
 
 #define TRUE 1
@@ -33,6 +33,7 @@ struct block {
 
 struct file_node {
     char filename[1024];
+    int num_blocks;
     struct block *block_arr;
 };
 
@@ -129,7 +130,8 @@ void braodcast_peerlist(struct peer online_clients[]) {
 
     for(int i=0; i<10; i++) {
         if(online_clients[i].peer_id != 0) {
-            send_id = send(online_clients[i].peer_id, "PeerUpdate", strlen("PeerUpdate"), MSG_DONTWAIT);
+            send_id = send(online_clients[i].peer_id, "PeerUpdate",
+                           strlen("PeerUpdate"), 0);
             if(send_id == -1) {
                 printf("Cannot send communication type!\n");
                 exit(1);
@@ -142,7 +144,8 @@ void braodcast_peerlist(struct peer online_clients[]) {
                 exit(1);
             }
 
-            send_id = send(online_clients[i].peer_id, online_clients, 10*sizeof(struct peer), MSG_WAITALL);
+            send_id = send(online_clients[i].peer_id, online_clients,
+                           10*sizeof(struct peer), 0);
             if(send_id == -1) {
                 printf("Problem in braodcast_peerlist!\n");
                 exit(1);
@@ -250,50 +253,58 @@ void show_DHT(struct file_node DHT[]) {
     printf("BLOCK DISTRIBUTION TABLE\n\n");
     for(int i=0; i<100; i++) {
         if(DHT[i].block_arr != NULL) {
-            printf("FILENAME: %s\n", DHT[i].filename);
+            printf("FILENAME: %s \n", DHT[i].filename);
             for(struct block *q = DHT[i].block_arr; q != NULL; q = q->next)
                 printf("\tBLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port);
+            printf("\n");
+           
         }
     }
     printf("---------------------------------------------\n");
 }
 
 void send_table_to_client(struct file_node DHT[], struct peer client) {
-    char msg[2048], reply[1024], block_info[1024];
+    /*  Send the list of files available the client requesting it  */
+
+    char msg[2048], reply[4], *file_name, *orig_name;
     int file_count = 0, send_id, recv_id, index_list[100];
+    bzero(reply, 4);
 
     for(int i=0; i<100; i++)
         if(DHT[i].block_arr != NULL)
-            index_list[file_count++] = i;
+            index_list[file_count++] = i; // Indexing the files in the DHT
 
-    // send_id = send(client.peer_id, &file_count, sizeof(file_count), 0);
-    // if(send_id == -1) {
-    //     printf("Cannot send file count!\n");
-    //     exit(1);
-    // }
+    send_id = send(client.peer_id, &file_count, sizeof(int), 0);
+    if(send_id == -1) {
+        printf("Cannot send number of files!\n");
+        exit(1);
+    }
 
-    // bzero(reply, 1024);
-    // recv_id = recv(client.peer_id, reply, sizeof(reply), 0);
-    // if(recv_id == -1) {
-    //     printf("Cannot recieve acknowledgement from the client!\n");
-    //     exit(1);
-    // }
+    recv_id = recv(client.peer_id, reply, sizeof(reply), 0);
+    if(recv_id == -1) {
+        printf("Cannot recieve ACK!\n");
+        exit(1);
+    }
 
     for(int i=0; i<file_count; i++) {
-        bzero(msg, 2048);
-        if(snprintf(msg, sizeof(msg), "FILENAME: %s\n", DHT[index_list[i]].filename) == -1) {
-            printf("SNprint error!\n");
+        bzero(reply, 4);
+        file_name = DHT[index_list[i]].filename;
+        orig_name = strtok(file_name, "-");
+        orig_name = strtok(NULL, "-");
+
+
+        send_id = send(client.peer_id, orig_name, strlen(orig_name), 0);
+        if(send_id == -1) {
+            printf("Cannot send filename!\n");
             exit(1);
         }
-        for(struct block *q = DHT[index_list[i]].block_arr; q != NULL; q = q->next) {
-            bzero(block_info, 1024);
-            if(snprintf(block_info, sizeof(block_info), "\tBLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port) == -1) {
-                printf("Snprint error!\n");
-                exit(1);
-            }
-            strcat(msg, block_info);
+
+        recv_id = recv(client.peer_id, reply, sizeof(reply), 0);
+        if(recv_id == -1) {
+            printf("Cannot recieve ACK of filename!\n");
+            exit(1);
         }
-        printf("%s", msg);
+
     }
 }
 
@@ -335,6 +346,8 @@ int main(int args, char *argv[]) {
     fd_set fd_arr;
 
     struct file_node DHT[100]; // The server can handle at most 100 files
+    for(int i=0; i<100; i++)
+        DHT[i].block_arr = NULL; // All blocks lists are initially NULL
 
     struct peer online_clients[10]; // Maximum 10 peers can be online
     for(int i=0; i<10; i++)
@@ -374,6 +387,18 @@ int main(int args, char *argv[]) {
                 printf("Cannot accept!\n");
                 exit(1);
             }
+
+            // Disabling Nagle's algorithm
+            // int flag = 1;
+            // int result = setsockopt(client_id,            /* socket affected */
+            //                         IPPROTO_TCP,     /* set option at TCP level */
+            //                         TCP_NODELAY,     /* name of option */
+            //                         (char *) &flag,  /* the cast is historical cruft */
+            //                         sizeof(int));    /* length of option value */
+            // if (result < 0) {
+            //     printf("Cannot disable Nagle's algo!\n");
+            //     exit(1);
+            // }
 
             int send_id = send(client_id, "New User? y or n: ", strlen("New User? y or n: "), 0);
             if(send_id == -1) {
@@ -539,10 +564,11 @@ int main(int args, char *argv[]) {
                     showDatabase(database, database_counter);
                     showOnlineClients(online_clients);
                 }
-
-                if(strcmp(buff, "upload") == 0) {
+                else if(strcmp(buff, "upload") == 0) {
                     printf("Client %d is uploading a file ...\n", online_clients[i].peer_id);
-                    char filename[256], final_name[1024], copy_final_name1[1024], copy_final_name2[1024], buffer[BUFSIZ], cmnd[20];
+                    char filename[256], final_name[1024],
+                         copy_final_name1[1024], copy_final_name2[1024], buffer[BUFSIZ], cmnd[20];
+
                     bzero(filename, 256);
                     bzero(final_name, 1024);
                     bzero(cmnd, 20);
@@ -553,7 +579,15 @@ int main(int args, char *argv[]) {
                         exit(1);
                     }
 
-                    snprintf(final_name, sizeof(final_name), "%d_%s", online_clients[i].peer_id, filename);
+                    printf("File name recieved: %s\n", filename);
+
+                    // int send_id = send(online_clients[i].peer_id, "ACK", strlen("ACK"), 0);
+                    // if(send_id == -1) {
+                    //     printf("Cannot send ACK for file name!\n");
+                    //     exit(1);
+                    // }
+
+                    snprintf(final_name, sizeof(final_name), "%d-%s", online_clients[i].peer_id, filename);
 
                     strcpy(copy_final_name1, final_name);
                     strcpy(copy_final_name2, final_name);
@@ -591,9 +625,11 @@ int main(int args, char *argv[]) {
 
                     int index = hash_filename(copy_final_name2);
                     strcpy(DHT[index].filename, copy_final_name2);
-                    DHT[index].block_arr = NULL;
+                    DHT[index].num_blocks = num_users_online;
 
-                    printf("COPY FINAL NAME 2: %s\n", copy_final_name2);
+                    // printf("NUM USERS ONLINE: %d\n", num_users_online);
+
+                    // printf("COPY FINAL NAME 2: %s\n", copy_final_name2);
 
                     char block_name[1024];
 
@@ -604,20 +640,22 @@ int main(int args, char *argv[]) {
                             bzero(block_name, 1024);
                             
                             if(block_count < 10) {
-                                if(snprintf(block_name, sizeof(block_name), "%s0%d",copy_final_name2, block_count) == -1) {
+                                if(snprintf(block_name, sizeof(block_name), "%s0%d",
+                                             copy_final_name2, block_count) == -1) {
                                     printf("Snprintf problem!\n");
                                     exit(1);
                                 }
                             }
                             else {
-                                if(snprintf(block_name, sizeof(block_name), "%s%d",copy_final_name2, block_count) == -1) {
+                                if(snprintf(block_name, sizeof(block_name), "%s%d", 
+                                             copy_final_name2, block_count) == -1) {
                                     printf("Snprintf problem!\n");
                                     exit(1);
                                 }
                             }
                             block_count++;
                             
-                            printf("BLOCK NAME: %s\n", block_name);
+                            // printf("BLOCK NAME: %s\n", block_name);
 
                             struct block *new_block = (struct block*)malloc(sizeof(struct block));
                             strcpy(new_block->block_name, block_name);
@@ -632,16 +670,83 @@ int main(int args, char *argv[]) {
                                     q = q->next;
                                 q->next = new_block;
                             }
+
+                            // free(new_block);
                         }
                     }
 
-                    //show_DHT(DHT);
-                    send_table_to_client(DHT, online_clients[i]);
+                    // printf("BLOCK COUNT: %d\n", block_count);
+                    // getc(stdin);
+
+
+                    show_DHT(DHT);
+                    // send_table_to_client(DHT, online_clients[i]);
                     upload_to_clients(DHT, index);
                     remove_from_server(DHT, index);
                     
                 }
                 else if(strcmp(buff, "file-table") == 0) {
+                    send_table_to_client(DHT, online_clients[i]);
+                }
+                else if(strcmp(buff, "download") == 0) {
+                    char *filename = (char *)malloc(20*sizeof(char)), reply[4];
+                    int send_id, recv_id, num_blocks = -1;
+                    bzero(reply, 4);
+
+                    recv_id = recv(online_clients[i].peer_id, filename,
+                                     sizeof(filename), 0);
+                    if(recv_id == -1) {
+                        printf("Cannot recieve filename for download!\n");
+                        exit(1);
+                    }
+
+                    int index = hash_filename(filename);
+                    if(DHT[index].block_arr != NULL) {
+                        num_blocks = DHT[index].num_blocks;
+
+                        send_id = send(online_clients[i].peer_id, &num_blocks, sizeof(int), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send number of blocks!\n");
+                            exit(1);
+                        }
+
+                        recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+                        if(recv_id == -1) {
+                            printf("Cannot recieve ACK for num blocks!\n");
+                            exit(1);
+                        }
+
+                        for(struct block *q = DHT[index].block_arr; q != NULL; q = q->next) {
+                            bzero(reply, 4);
+
+                            printf("SENDING BLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port);
+
+                            send_id = send(online_clients[i].peer_id, q, sizeof(struct block), 0);
+                            if(send_id == -1) {
+                                printf("Cannot send block info!\n");
+                                exit(1);
+                            }
+
+                            recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+                            if(recv_id == -1) {
+                                printf("Cannot recieve ACK for blocks!\n");
+                                exit(1);
+                            } 
+                        }
+                    }
+                    else {
+                        // Entry of the index in DHT is empty
+                    
+                        send_id = send(online_clients[i].peer_id, &num_blocks, sizeof(int), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send number of blocks!\n");
+                            exit(1);
+                        }
+
+                        continue;
+                    }
+
+
 
                 }
             }

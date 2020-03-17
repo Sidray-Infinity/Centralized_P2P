@@ -1,0 +1,7 @@
+.vscode/
+a.out
+client.out
+server.out
+test.c
+test1.c
+test-file.txt
