@@ -10,7 +10,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 * Download the server.c and client.c files.
 
-- #### Server side
+#### Server side
 * Installing MySQL
     * Execute the following commands on Ubuntu: <br />
         `sudo apt-get update` <br />
@@ -54,9 +54,10 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 * Create a new user and grant all privileges to it.
 
+## Compilation
+* Compile the server side code using the following command : <br />
+  `gcc server.c -o server. out `mysql_config --cflags --libs``
 
-### Server Roles
-* To provide registration and authentication services 
 
 
 ### TASKS
