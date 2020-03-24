@@ -2,11 +2,11 @@
 
 The aim of this project is to provide a file sharing system, among the peers connected to the network, administered by a centralized server.
 
-### Requirements
+## Requirements
 * Linux based Operating System.
 * Internet Connection
 
-### Installation Process
+## Installation Process
 
 * Download the server.c and client.c files.
 
@@ -52,6 +52,8 @@ The aim of this project is to provide a file sharing system, among the peers con
         | dst_port  | int  | NO   |     | NULL    |       |
         | f_id      | int  | NO   | MUL | NULL    |       |
 
+* Create a new user and grant all privileges to it.
+
 
 ### Server Roles
 * To provide registration and authentication services 
@@ -61,3 +63,6 @@ The aim of this project is to provide a file sharing system, among the peers con
 - Handle the problem of 0 byte files.
 - Files seems to be merging properly, but with some additional chars. Handle it.
 - Retentering username after entering used one is buggy. Probably due to use of goto.
+
+### Finalization
+- Remove the clear table commands that is executed, everytime the server starts.
