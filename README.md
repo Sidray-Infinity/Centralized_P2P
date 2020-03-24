@@ -19,16 +19,14 @@ The aim of this project is to provide a file sharing system, among the peers con
 * Create a new database 'p2p' and four tables to it, namely:
     * login_details
 
-| Field     | Type       | Null | Key | Default | Extra |
-|-----------|------------|------|-----|---------|-------|
-| log_id    | int        | NO   | PRI | NULL    |       |
-| user_name | text       | YES  |     | NULL    |       |
-| password  | text       | YES  |     | NULL    |       |
-| isOnline  | tinyint(1) | YES  |     | NULL    |       |
+        | Field     | Type       | Null | Key | Default | Extra |
+        |-----------|------------|------|-----|---------|-------|
+        | log_id    | int        | NO   | PRI | NULL    |       |
+        | user_name | text       | YES  |     | NULL    |       |
+        | password  | text       | YES  |     | NULL    |       |
+        | isOnline  | tinyint(1) | YES  |     | NULL    |       |
 
-|A|B|C|AA|
-| --- | --- | --- | --- |
-|Q|W   |    E | RR     |
+
 
 * online_clients
 * files
