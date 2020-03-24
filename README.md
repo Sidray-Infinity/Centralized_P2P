@@ -2,7 +2,7 @@
 
 <p align=center>
 <img src="images/CP2P_logo.png" alt="logo" width=200
-            height=200></p>
+            height=180></p>
 
 The aim of this project is to provide a file sharing system, among the peers connected to the network, administered by a centralized server.
 
