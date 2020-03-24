@@ -12,19 +12,17 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 - #### Server side
 * Installing MySQL
-    * Execute the following commands on Ubuntu:
+    * Execute the following commands on Ubuntu: <br />
         `sudo apt-get update` <br />
         `sudo apt-get install mysql-server`
 
 * Create a new database 'p2p' and four tables to it, namely:
-    * login_details
-
-        | Field     | Type       | Null | Key | Default | Extra |
-        |-----------|------------|------|-----|---------|-------|
-        | log_id    | int        | NO   | PRI | NULL    |       |
-        | user_name | text       | YES  |     | NULL    |       |
-        | password  | text       | YES  |     | NULL    |       |
-        | isOnline  | tinyint(1) | YES  |     | NULL    |       |
+    * login_details : | Field     | Type       | Null | Key | Default | Extra |
+                    |-----------|------------|------|-----|---------|-------|
+                    | log_id    | int        | NO   | PRI | NULL    |       |
+                    | user_name | text       | YES  |     | NULL    |       |
+                    | password  | text       | YES  |     | NULL    |       |
+                    | isOnline  | tinyint(1) | YES  |     | NULL    |       |
 
     * online_clients
 
