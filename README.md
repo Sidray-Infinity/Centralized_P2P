@@ -56,9 +56,16 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 ## Compilation
 * Compile the server side code using the following command : <br />
-  `gcc server.c -o server. out \`mysql_config --cflags --libs\``
+        gcc server.c -o server.out mysql_config --cflags --libs
 
-
+> ## This is a header.
+> 
+> 1.   This is the first list item.
+> 2.   This is the second list item.
+> 
+> Here's some example code:
+> 
+>     return shell_exec("echo $input | $markdown_script");
 
 ### TASKS
 - Handle the problem of 0 byte files.
