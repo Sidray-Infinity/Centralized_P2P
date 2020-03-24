@@ -13,7 +13,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 - #### Server side
 * Installing MySQL
     * Execute the following commands on Ubuntu:
-        `sudo apt-get update`
+        `sudo apt-get update` <br />
         `sudo apt-get install mysql-server`
 
 * Create a new database 'p2p' and four tables to it, namely:
