@@ -7,7 +7,10 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <mysql/mysql.h>
 #include "handle_files.c"
+
+#define ONLINE_CLIENTS_LIMIT 50
 
 #define TRUE 1
 #define FALSE 0
@@ -37,6 +40,13 @@ struct file_node {
     struct block *block_arr;
 };
 
+void finish_with_error(MYSQL *con) {
+    fprintf(stderr, "%s\n", mysql_error(con));
+    mysql_close(con);
+    exit(1);        
+}
+
+
 void showDatabase(struct login database[], int database_counter) {
     // Displays the database of username and password for different clients.
 
@@ -49,6 +59,33 @@ void showDatabase(struct login database[], int database_counter) {
     for(int i=0; i<=database_counter; i++)
         printf("%d. STATUS: %d USERNAME: %s PASSWORD: %s\n",i+1, database[i].online,
          database[i].username, database[i].password);
+    printf("---------------------------------------------\n");
+}
+
+
+void show_auth_DB(MYSQL *con) {
+    // Displays the database of username and password for different clients.
+
+    printf("---------------------------------------------\n");
+    printf("DATABASE:\n\n");
+    char query[30];
+    bzero(query, sizeof(query));
+
+    if(snprintf(query, sizeof(query),
+        "SELECT * from login_details") == -1) {
+            fprintf(stderr, "Snprintf error!\n");
+            exit(1);
+        }
+
+        if(mysql_query(con, query))
+            finish_with_error(con);
+
+        MYSQL_RES *result = mysql_store_result(con);
+        MYSQL_ROW row;
+
+        while ((row = mysql_fetch_row(result)))
+            printf("LOG_ID: %d USERNAME: %s PASSWORD: %s STATUS: %d\n", atoi(row[0]), row[1], row[2], atoi(row[3]));
+
     printf("---------------------------------------------\n");
 }
 
@@ -83,14 +120,41 @@ int numUsersOnline(struct peer online_clients[]) {
     return num_users_online;
 }
 
-int userNameTaken(struct login user, struct login database[], int database_counter) {
+// int userNameTaken(struct login user, struct login database[], int database_counter) {
+//     // Determines if the username is already taken or not
+
+//     for(int i=0; i<=database_counter; i++)
+//         if(strcmp(database[i].username, user.username) == 0)
+//             return TRUE;
+//     return FALSE;
+// }
+
+int userNameTaken(struct login user, MYSQL *con) {
     // Determines if the username is already taken or not
 
-    for(int i=0; i<=database_counter; i++)
-        if(strcmp(database[i].username, user.username) == 0)
-            return 1;
-    return 0;
+    
+    char query[50];
+    bzero(query, 50);
+
+    if(snprintf(query, sizeof(query), "SELECT * FROM login_details WHERE user_name = \"%s\"", user.username) == -1) {
+        printf("Snprintf error!\n");
+        exit(1);
+    }
+
+    if(mysql_query(con, query))
+        finish_with_error(con);
+
+    MYSQL_RES *result = mysql_store_result(con);
+    //printf("RESULT LEN: %ld\n", mysql_num_rows(result));
+    if(mysql_num_rows(result) == 0)
+        return FALSE;
+
+    printf("Test\n");
+
+
+    return TRUE; 
 }
+
 
 void showOnlineClients(struct peer online_clients[]) {
     // Shows the list of all online clients
@@ -106,20 +170,76 @@ void showOnlineClients(struct peer online_clients[]) {
         
 }
 
-int authenticate_login(struct login user, struct login *database, int database_counter) {
-    // Authenticates the login details provided by the user.
-    
-    for(int i=0; i<=database_counter; i++) 
-        if(strcmp(database[i].username, user.username) == 0 && 
-           strcmp(database[i].password, user.password) == 0) {
-            if(database[i].online == 0) {
-                return i;
-            }
-            else 
-                return -2;
+void show_online_clients(MYSQL *con) {
+    printf("---------------------------------------------\n");
+    printf("CLIENTS ONLINE:\n\n");
+    char query[30];
+    bzero(query, sizeof(query));
+
+    if(snprintf(query, sizeof(query),
+        "SELECT * from online_clients") == -1) {
+            fprintf(stderr, "Snprintf error!\n");
+            exit(1);
         }
-    return -1;
+
+        if(mysql_query(con, query))
+            finish_with_error(con);
+
+        MYSQL_RES *result = mysql_store_result(con);
+        MYSQL_ROW row;
+
+        while ((row = mysql_fetch_row(result)))
+            printf("PEER_ID: %d IP: %s PORT: %d LOG_ID: %d\n", atoi(row[0]), row[1], atoi(row[2]), atoi(row[3]));
+
+    printf("---------------------------------------------\n");
+        
 }
+
+// int authenticate_login(struct login user, struct login *database, int database_counter) {
+//     // Authenticates the login details provided by the user.
+    
+//     for(int i=0; i<=database_counter; i++) 
+//         if(strcmp(database[i].username, user.username) == 0 && 
+//            strcmp(database[i].password, user.password) == 0) {
+//             if(database[i].online == 0) {
+//                 return i;
+//             }
+//             else 
+//                 return -2;
+//         }
+//     return -1;
+// }
+
+int authenticate_login(struct login user, MYSQL *con) {
+    // Authenticates the login details provided by the user.
+
+    char query[1024];
+    bzero(query, sizeof(query));
+
+    if(snprintf(query, sizeof(query),
+         "SELECT * FROM login_details WHERE user_name = \"%s\" AND password = \"%s\"", user.username, user.password) == -1) {
+        fprintf(stderr, "Snprintf error!\n");
+        exit(1);
+    }
+
+    if(mysql_query(con, query))
+        finish_with_error(con);
+
+    MYSQL_RES *result = mysql_store_result(con);
+    if(mysql_num_rows(result) == 0)
+        return -1;
+    else if(mysql_num_rows(result) == 1) {
+        MYSQL_ROW row = mysql_fetch_row(result);
+        if(strcmp(row[3], "1") == 0) // If the user is already online 
+            return -2;
+        printf("LOG ID %d\n", atoi(row[0]));
+        return atoi(row[0]);
+    }
+    
+
+    return 1;
+}
+
 
 void braodcast_peerlist(struct peer online_clients[]) {
     // braodcast_peerlists the new user's ip and port to all online users
@@ -152,6 +272,76 @@ void braodcast_peerlist(struct peer online_clients[]) {
             } 
         }
     }
+}
+
+
+void broadcast_peerlist_sql(MYSQL *con) {
+    // braodcast_peerlists the new user's ip and port to all online users
+
+    printf("Initiating braodcast_peerlisting:\n");
+    int send_id, recv_id, num_clients;
+    char reply[1024], query[100];
+    bzero(query, sizeof(query));
+
+    if(snprintf(query, sizeof(query), 
+        "SELECT * FROM online_clients") == -1) {
+        fprintf(stderr, "Snprintf error!\n");
+        exit(1);
+    }
+
+    if(mysql_query(con, query))
+        finish_with_error(con);
+
+    MYSQL_RES *result = mysql_store_result(con);
+    MYSQL_ROW row;
+    num_clients = mysql_num_rows(result);
+
+    printf("NUM CLIENTS: %d\n", num_clients);
+
+    struct peer *online_clients = (struct peer *)malloc(num_clients*sizeof(struct peer));
+    for(int i=0; i<num_clients; i++) {
+        struct peer temp;
+
+        row = mysql_fetch_row(result);
+        temp.peer_id = atoi(row[0]);
+        strcpy(temp.ip, row[1]);
+        temp.port = atoi(row[2]);
+
+        online_clients[i] = temp;
+    }
+
+    for(int i=0; i<num_clients; i++) {
+        send_id = send(online_clients[i].peer_id, "PeerUpdate",
+                           strlen("PeerUpdate"), 0);
+        if(send_id == -1) {
+            printf("Cannot send communication type!\n");
+            exit(1);
+        } 
+
+        bzero(reply, 1024);
+        recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+        if(recv_id == -1) {
+            printf("Cannot recieve acknowledgement!\n");
+            exit(1);
+        }
+
+        send_id = send(online_clients[i].peer_id, &num_clients,
+                           sizeof(int), 0);
+        if(send_id == -1) {
+            printf("Cannot send communication type!\n");
+            exit(1);
+        } 
+
+        send_id = send(online_clients[i].peer_id, online_clients,
+                        10*sizeof(struct peer), 0);
+        if(send_id == -1) {
+            printf("Problem in braodcast_peerlist!\n");
+            exit(1);
+        }
+    }
+
+    //free(online_clients);
+
 }
 
 void show_block_locations(struct file_node DHT[], int index) {
@@ -263,16 +453,27 @@ void show_DHT(struct file_node DHT[]) {
     printf("---------------------------------------------\n");
 }
 
-void send_table_to_client(struct file_node DHT[], struct peer client) {
+void send_files_to_client(MYSQL *con, struct peer client) {
     /*  Send the list of files available the client requesting it  */
 
     char msg[2048], reply[4], *file_name, *orig_name;
     int file_count = 0, send_id, recv_id, index_list[100];
+    char query[200];
     bzero(reply, 4);
+    bzero(query, sizeof(query));
 
-    for(int i=0; i<100; i++)
-        if(DHT[i].block_arr != NULL)
-            index_list[file_count++] = i; // Indexing the files in the DHT
+    if(snprintf(query, sizeof(query),
+                "SELECT filename FROM files") == -1) {
+        fprintf(stderr, "Snprintf error!\n");
+    }
+
+    if(mysql_query(con, query))
+        finish_with_error(con);
+
+    MYSQL_RES *res = mysql_store_result(con);
+    file_count = mysql_num_rows(res);
+    MYSQL_ROW row;
+
 
     send_id = send(client.peer_id, &file_count, sizeof(int), 0);
     if(send_id == -1) {
@@ -286,14 +487,10 @@ void send_table_to_client(struct file_node DHT[], struct peer client) {
         exit(1);
     }
 
-    for(int i=0; i<file_count; i++) {
+    while((row = mysql_fetch_row(res))){
         bzero(reply, 4);
-        file_name = DHT[index_list[i]].filename;
-        orig_name = strtok(file_name, "-");
-        orig_name = strtok(NULL, "-");
 
-
-        send_id = send(client.peer_id, orig_name, strlen(orig_name), 0);
+        send_id = send(client.peer_id, row[0], strlen(row[0]), 0);
         if(send_id == -1) {
             printf("Cannot send filename!\n");
             exit(1);
@@ -306,6 +503,7 @@ void send_table_to_client(struct file_node DHT[], struct peer client) {
         }
 
     }
+    mysql_free_result(res);
 }
 
 
@@ -335,6 +533,7 @@ int main(int args, char *argv[]) {
         exit(1);
     }
 
+
     int listen_id = listen(sock_id, 10);
     if(listen_id == -1) {
         printf("Cannot listen!\n");
@@ -343,6 +542,7 @@ int main(int args, char *argv[]) {
     
     int maxfds = sock_id;
     char buff[1024];
+    char query[200];
     fd_set fd_arr;
 
     struct file_node DHT[100]; // The server can handle at most 100 files
@@ -354,6 +554,29 @@ int main(int args, char *argv[]) {
         online_clients[i].peer_id = 0;  // Initially, all the peers are offline.
 
     struct login database[100]; int database_counter = -1;   // Record the details of all peer login
+
+	printf("MySQL client version: %s\n", mysql_get_client_info());
+	MYSQL *con = mysql_init(NULL); // Initialized mysql object
+	if(con == NULL) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		exit(1);
+	}
+
+	// Establishes connection to DB p2p
+	if (mysql_real_connect(con, "localhost", "sid", "sid", "p2p", 0, NULL, 0) == NULL)
+		finish_with_error(con);
+
+
+    // Remove after completion !!
+    if(mysql_query(con, "DELETE FROM online_clients WHERE TRUE"))
+        finish_with_error(con);
+    if(mysql_query(con, "DELETE FROM login_details WHERE TRUE"))
+        finish_with_error(con);
+    if(mysql_query(con, "DELETE FROM blocks WHERE TRUE"))
+        finish_with_error(con);
+    if(mysql_query(con, "DELETE FROM files WHERE TRUE"))
+        finish_with_error(con);
+
 
     printf("Waiting for connections..\n");
 
@@ -388,17 +611,19 @@ int main(int args, char *argv[]) {
                 exit(1);
             }
 
-            // Disabling Nagle's algorithm
-            // int flag = 1;
-            // int result = setsockopt(client_id,            /* socket affected */
-            //                         IPPROTO_TCP,     /* set option at TCP level */
-            //                         TCP_NODELAY,     /* name of option */
-            //                         (char *) &flag,  /* the cast is historical cruft */
-            //                         sizeof(int));    /* length of option value */
-            // if (result < 0) {
-            //     printf("Cannot disable Nagle's algo!\n");
-            //     exit(1);
-            // }
+            /*
+            Disabling Nagle's algorithm
+            int flag = 1;
+            int result = setsockopt(client_id,            
+                                    IPPROTO_TCP,     
+                                    TCP_NODELAY,     
+                                    (char *) &flag,  
+                                    sizeof(int));    
+            if (result < 0) {
+                printf("Cannot disable Nagle's algo!\n");
+                exit(1);
+            }
+            */
 
             int send_id = send(client_id, "New User? y or n: ", strlen("New User? y or n: "), 0);
             if(send_id == -1) {
@@ -424,6 +649,7 @@ int main(int args, char *argv[]) {
             struct peer new_user; // New user storage strucutre.
             struct login new_user_login;
 
+            // Recieving username and password
             recv_id = recv(client_id, &new_user_login, sizeof(new_user_login), 0);
             if(recv_id == -1) {
                 printf("Cannot recieve login details!\n");
@@ -434,7 +660,18 @@ int main(int args, char *argv[]) {
                 // Need to add it to all_clients_ever, online client and assign a user name.
                 // Add to the all_clients list (historical record of clients)
 
+                /*
                 if(userNameTaken(new_user_login, database, database_counter) == TRUE) {
+                    printf("Used Username entered by the client.\n");
+                    send_id = send(client_id, "Username taken.", strlen("Username taken."), 0);
+                    if(send_id == 0) {
+                        printf("Cannot send username taken message!\n");
+                        exit(1);
+                    }
+                } 
+                */
+
+                if(userNameTaken(new_user_login, con) == TRUE) {
                     printf("Used Username entered by the client.\n");
                     send_id = send(client_id, "Username taken.", strlen("Username taken."), 0);
                     if(send_id == 0) {
@@ -449,6 +686,16 @@ int main(int args, char *argv[]) {
                     strcpy(database[database_counter].password, new_user_login.password);
                     database[database_counter].online = 1;
 
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query), "INSERT INTO login_details VALUES(%d, \"%s\", \"%s\", 1)",
+                                    database_counter, new_user_login.username, new_user_login.password) == -1) {
+                        fprintf(stderr, "Snprintf error!\n");
+                        exit(1);
+                    }                     
+                  
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+  
                     int send_id = send(client_id, "Registration successful",
                                          strlen("Registration successful"), 0);
                     if(send_id == -1) {
@@ -458,6 +705,7 @@ int main(int args, char *argv[]) {
                 }
             }
             else { // User had a connection with the server in the past.
+                /*
                 auth_stat = authenticate_login(new_user_login, database, database_counter);
                 if(auth_stat >= 0) {
                     printf("Client login succesfull! Sending the greeting msg..\n");
@@ -471,6 +719,31 @@ int main(int args, char *argv[]) {
                     usersOnlineDB(database, database_counter);
 
                 }
+                */
+                auth_stat = authenticate_login(new_user_login, con);
+                if(auth_stat >= 0) {
+                    printf("Client login succesfull! Sending the greeting msg..\n");
+                    int send_id = send(client_id, "Login Successful",
+                                         strlen("Login Successful"), 0);
+                    if(send_id == -1) {
+                        printf("Cannot send the greeting msg!\n");
+                        exit(1);
+                    }
+
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query), 
+                        "UPDATE login_details SET isOnline = 1 WHERE log_id = %d", auth_stat) == -1) {
+                            fprintf(stderr, "Snprintf error!\n");
+                            exit(1);
+                        }
+                    
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+
+                    database[auth_stat].online = 1;
+                    usersOnlineDB(database, database_counter);
+
+                }
                 else if(auth_stat == -2) {
                     printf("User already loged in!\n");
                     send_id = send(client_id, "Already logged in.", 
@@ -479,6 +752,7 @@ int main(int args, char *argv[]) {
                         printf("Cannot send already logged in message!\n");
                         exit(1);
                     }
+                    continue;
                 }
                 else {  // user login failed
                     printf("Authentication failed. Sending the msg..\n");
@@ -517,26 +791,53 @@ int main(int args, char *argv[]) {
                 }
             }
 
+
             if(isNewClient) { 
                 database[database_counter].addrs_info.peer_id = client_id;
                 strcpy(database[database_counter].addrs_info.ip, inet_ntoa(udp_id.sin_addr));
                 database[database_counter].addrs_info.port = ntohs(udp_id.sin_port);
+
+                bzero(query, sizeof(query));
+                if(snprintf(query, sizeof(query),
+                    "INSERT INTO online_clients VALUES(%d, \"%s\", %d, %d)", client_id, inet_ntoa(udp_id.sin_addr), ntohs(udp_id.sin_port), database_counter) == -1) {
+                    fprintf(stderr, "Snprintf error!\n");
+                    exit(1);
+                }
+
+                if(mysql_query(con, query))
+                    finish_with_error(con);
+
             }
             else {
                 database[auth_stat].addrs_info.peer_id = client_id;
                 strcpy(database[auth_stat].addrs_info.ip, inet_ntoa(udp_id.sin_addr));
                 database[auth_stat].addrs_info.port = ntohs(udp_id.sin_port);
+
+                bzero(query, sizeof(query));
+                if(snprintf(query, sizeof(query),
+                    "INSERT INTO online_clients VALUES(%d, \"%s\", %d, %d)", client_id, inet_ntoa(udp_id.sin_addr), ntohs(udp_id.sin_port), auth_stat) == -1) {
+                    fprintf(stderr, "Snprintf error!\n");
+                    exit(1);
+                }
+
+                if(mysql_query(con, query))
+                    finish_with_error(con);
             }
           
-            braodcast_peerlist(online_clients);
-
-            showDatabase(database, database_counter);
-            showOnlineClients(online_clients);
+            //broadcast_peerlist(online_clients);
+            // showDatabase(database, database_counter);
+            // showOnlineClients(online_clients);
+            
+            broadcast_peerlist_sql(con);
+            show_auth_DB(con);
+            show_online_clients(con);
         }
 
         for(int i=0; i<10; i++) {
             if(online_clients[i].peer_id != 0 && FD_ISSET(online_clients[i].peer_id, &fd_arr)) {
                 printf("Recieving a message from the client:\n");
+                int client_id = online_clients[i].peer_id;
+
                 bzero(buff, 1024);
                 int recv_id = recv(online_clients[i].peer_id, buff, sizeof(buff), 0);
                 if(recv_id == -1) {
@@ -557,17 +858,61 @@ int main(int args, char *argv[]) {
                     online_clients[i].peer_id = 0; // Changing the status of the client to offline
                     database[j].online = 0;
 
-                    close(temp);
-                    
-                    braodcast_peerlist(online_clients); // braodcast_peerlist the updated client list.
+                     close(temp);
 
-                    showDatabase(database, database_counter);
-                    showOnlineClients(online_clients);
+                    // Extract the log_id to be updated
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query), 
+                        "SELECT log_id FROM online_clients WHERE p_id = %d", client_id) == -1) {
+                        fprintf(stderr, "Snprintf error!\n");
+                        exit(1);
+                    }
+
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+
+                    MYSQL_RES *result = mysql_store_result(con);
+                    MYSQL_ROW row = mysql_fetch_row(result);
+                    int log_id = atoi(row[0]); 
+
+                    // Remove the row from online_clients
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query), 
+                        "DELETE FROM online_clients WHERE p_id = %d", client_id) == -1) {
+                        fprintf(stderr, "Snprintf error!\n");
+                        exit(1);
+                    }
+
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+
+                    // Update the login_details file
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query), 
+                        "UPDATE login_details SET isOnline = 0 WHERE log_id = %d", log_id) == -1) {
+                        fprintf(stderr, "Snprintf error!\n");
+                        exit(1);
+                    }
+
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+
+                    // char c;
+                    // fgetc(stdin);
+
+            
+                    broadcast_peerlist_sql(con);
+                    show_auth_DB(con);
+                    show_online_clients(con);
+
+          
+                    fgetc(stdin);
                 }
                 else if(strcmp(buff, "upload") == 0) {
                     printf("Client %d is uploading a file ...\n", online_clients[i].peer_id);
                     char filename[256], final_name[1024],
                          copy_final_name1[1024], copy_final_name2[1024], buffer[BUFSIZ], cmnd[20];
+                    int latest_file_id = 0;
 
                     bzero(filename, 256);
                     bzero(final_name, 1024);
@@ -581,13 +926,56 @@ int main(int args, char *argv[]) {
 
                     printf("File name recieved: %s\n", filename);
 
+                    // Extracting latest file ID
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query),
+                        "SELECT f_id from files ORDER BY f_id DESC LIMIT 1") == -1) {
+                        fprintf(stderr, "Snprintf error!\n");
+                        exit(1);
+                    }
+
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+
+                    MYSQL_RES * result = mysql_store_result(con);
+
+                    if(mysql_num_rows(result) > 0) {
+                        MYSQL_ROW row = mysql_fetch_row(result);
+                        latest_file_id = atoi(row[0]);
+
+                        // Updating the files table
+                        bzero(query, sizeof(query));
+                        if(snprintf(query, sizeof(query),
+                            "INSERT INTO files VALUES(%d, \"%s\", %d)",++latest_file_id, filename, client_id) == -1) {
+                            fprintf(stderr, "Snprintf error!\n");
+                            exit(1);
+                        }
+
+                    }
+                    else {
+                        latest_file_id = 0;
+
+                        // Updating the files table
+                        bzero(query, sizeof(query));
+                        if(snprintf(query, sizeof(query),
+                            "INSERT INTO files VALUES(%d, \"%s\", %d)",0, filename, client_id) == -1) {
+                            fprintf(stderr, "Snprintf error!\n");
+                            exit(1);
+                        }
+
+                    }
+
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
+        
                     // int send_id = send(online_clients[i].peer_id, "ACK", strlen("ACK"), 0);
                     // if(send_id == -1) {
                     //     printf("Cannot send ACK for file name!\n");
                     //     exit(1);
                     // }
 
-                    snprintf(final_name, sizeof(final_name), "%d-%s", online_clients[i].peer_id, filename);
+                    snprintf(final_name, sizeof(final_name), 
+                                "%d-%s", online_clients[i].peer_id, filename);
 
                     strcpy(copy_final_name1, final_name);
                     strcpy(copy_final_name2, final_name);
@@ -599,7 +987,7 @@ int main(int args, char *argv[]) {
                         printf("Cannot create file!\n");
                         exit(1);
                     }
-                    
+    
                     int recv_bytes = 0;  
     
                     while( (recv_bytes = read(online_clients[i].peer_id, buffer, BUFSIZ))> 0 ) {
@@ -622,7 +1010,7 @@ int main(int args, char *argv[]) {
                     split_file(final_name, 
                         num_users_online, strlen(final_name));
                     printf("File splitted.\n");
-
+                    printf("LATEST FILE ID: %d\n", latest_file_id);
                     int index = hash_filename(copy_final_name2);
                     strcpy(DHT[index].filename, copy_final_name2);
                     DHT[index].num_blocks = num_users_online;
@@ -653,10 +1041,23 @@ int main(int args, char *argv[]) {
                                     exit(1);
                                 }
                             }
-                            block_count++;
                             
-                            // printf("BLOCK NAME: %s\n", block_name);
 
+                            // Updating the blocks table
+                            bzero(query, sizeof(query));
+                            if(snprintf(query, sizeof(query),
+                                "INSERT INTO blocks VALUES(\"%s\", \"%s\", %d, %d)",
+                                 block_name, online_clients[i].ip, online_clients[i].port, latest_file_id) == -1) {
+                                fprintf(stderr, "Snprintf error!\n");
+                                exit(1);
+                            }
+
+                            if(mysql_query(con, query))
+                                finish_with_error(con);
+
+                            // printf("BLOCK NAME: %s\n", block_name);
+                            
+                            block_count++;
                             struct block *new_block = (struct block*)malloc(sizeof(struct block));
                             strcpy(new_block->block_name, block_name);
                             new_block->loc = online_clients[i];
@@ -685,21 +1086,25 @@ int main(int args, char *argv[]) {
                     remove_from_server(DHT, index);
                     
                 }
-                else if(strcmp(buff, "file-table") == 0) {
-                    send_table_to_client(DHT, online_clients[i]);
+                else if(strcmp(buff, "ls") == 0) {
+                    send_files_to_client(con, online_clients[i]);
                 }
                 else if(strcmp(buff, "download") == 0) {
                     char *filename = (char *)malloc(20*sizeof(char)), reply[4];
-                    int send_id, recv_id, num_blocks = -1;
+                    int send_id, recv_id, num_blocks = 0;
                     bzero(reply, 4);
 
+                    // Recieving filename requested to be downloaded
                     recv_id = recv(online_clients[i].peer_id, filename,
                                      sizeof(filename), 0);
                     if(recv_id == -1) {
                         printf("Cannot recieve filename for download!\n");
                         exit(1);
                     }
-
+                    filename[strlen(filename)-1] = '\0';
+                    // printf("FILENAME RECIEVED %s\n", filename);
+                    
+                    /*
                     int index = hash_filename(filename);
                     if(DHT[index].block_arr != NULL) {
                         num_blocks = DHT[index].num_blocks;
@@ -745,9 +1150,97 @@ int main(int args, char *argv[]) {
 
                         continue;
                     }
+                    */
 
+                    bzero(query, sizeof(query));
+                    if(snprintf(query, sizeof(query),
+                                "SELECT f_id FROM files WHERE filename = \"%s\"", filename) == -1) {
+                        fprintf(stderr, "Snprintf errro!\n");
+                        exit(1);
+                    }
 
+                    if(mysql_query(con, query))
+                        finish_with_error(con);
 
+                    MYSQL_RES *res = mysql_store_result(con);
+                    MYSQL_ROW row;
+
+                    if(mysql_num_rows(res) > 0) {
+
+                        row = mysql_fetch_row(res);
+                        
+                        // Extracting blocks info
+                        bzero(query, sizeof(query));
+                        if(snprintf(query, sizeof(query),
+                                    "SELECT blockname, dst_IP, dst_port FROM blocks WHERE f_id = %d", atoi(row[0])) == -1) {
+                            fprintf(stderr, "Snprintf errro!\n");
+                            exit(1);
+                        }
+
+                        if(mysql_query(con, query))
+                            finish_with_error(con);
+                        
+                        res = mysql_store_result(con);
+                        num_blocks = mysql_num_rows(res);
+
+                        printf("NUMBLOCKS FOUND: %d\n", num_blocks);
+
+                        // Sending number of blocks found to client
+                        send_id = send(online_clients[i].peer_id, &num_blocks, sizeof(int), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send number of blocks!\n");
+                            exit(1);
+                        }
+
+                        recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+                        if(recv_id == -1) {
+                            printf("Cannot recieve ACK for num blocks!\n");
+                            exit(1);
+                        }
+
+                        while((row = mysql_fetch_row(res))) {
+                            bzero(reply, 4);
+                            printf("SENDING BLOCKNAME: %s IP: %s PORT: %s\n", row[0], row[1], row[2]);
+
+                            struct block *temp_block = (struct block *)malloc(sizeof(struct block));
+
+                            strcpy(temp_block->block_name, row[0]);
+                            strcpy(temp_block->loc.ip, row[1]);
+                            temp_block->loc.port = atoi(row[2]);
+
+                            send_id = send(online_clients[i].peer_id, temp_block, sizeof(struct block), 0);
+                            if(send_id == -1) {
+                                printf("Cannot send block info!\n");
+                                exit(1);
+                            }
+
+                            recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+                            if(recv_id == -1) {
+                                printf("Cannot recieve ACK for blocks!\n");
+                                exit(1);
+                            } 
+
+                            // free(temp_block);
+                        }
+                        printf("ALL BLOCK DETAILS SENT.\n");
+
+                    }
+                    else {
+                        // Filename not found
+                        send_id = send(online_clients[i].peer_id, &num_blocks, sizeof(int), 0);
+                        if(send_id == -1) {
+                            printf("Cannot send number of blocks!\n");
+                            exit(1);
+                        }
+
+                        recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
+                        if(recv_id == -1) {
+                            printf("Cannot recieve ACK for num blocks!\n");
+                            exit(1);
+                        }
+
+                        continue;
+                    }
                 }
             }
         }
@@ -784,6 +1277,6 @@ int main(int args, char *argv[]) {
     }
 
     close(sock_id);
-    
+    mysql_close(con);
     return 0;
 }

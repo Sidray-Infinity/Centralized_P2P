@@ -12,8 +12,9 @@
 #include <fcntl.h>
 #include <netinet/tcp.h>
 
+
 struct peer {
-    int peer_id;
+    int peer_id;  
     char ip[20];
     int port;
 };
@@ -40,13 +41,12 @@ struct file_node {
 
 
 
-void display_online_peers(struct peer *peer_list) {
+void display_online_peers(struct peer *peer_list, int num_peers) {
     printf("---------------------------------------------\n");
     printf("PEERS ONLINE:\n\n");
-    for(int i=0; i<10; i++) {
-        if(peer_list[i].peer_id != 0)
-            printf("%d. PEER: %d IP: %s UDP_PORT: %d\n",
-                    i, peer_list[i].peer_id, peer_list[i].ip, peer_list[i].port);
+    for(int i=0; i<num_peers; i++) {
+        printf("%d. PEER: %d IP: %s UDP_PORT: %d\n",
+                i, peer_list[i].peer_id, peer_list[i].ip, peer_list[i].port);
     }
     printf("---------------------------------------------\n");
 }
@@ -79,6 +79,188 @@ int isNumber(char *buff) {
         return num;
     }
     return -1;
+}
+
+int sendFile(FILE* fp, char* buf, int s)  { 
+    int i, len; 
+  
+    char ch; 
+    for (i = 0; i < s; i++) { 
+        ch = fgetc(fp); 
+        buf[i] = ch; 
+        if (ch == EOF) 
+            return 1; 
+    } 
+    return 0; 
+} 
+
+int recvFile(char* buf, int s) { 
+    int i; 
+    char ch; 
+    for (i = 0; i < s; i++) { 
+        ch = buf[i];  
+        if (ch == EOF) 
+            return 1;  
+    } 
+    return 0; 
+}
+
+void download_block(int udp_sockid, struct block block_info) {
+
+    int recv_id, send_id, n, recv_bytes;
+    char reply[4], recvbuffer[BUFSIZ];
+
+    bzero(recvbuffer, BUFSIZ);
+
+    struct sockaddr_in dst;
+    struct sockaddr store; int len_store = sizeof(store);
+    dst.sin_family = AF_INET;
+    inet_pton(AF_INET, block_info.loc.ip, &(dst.sin_addr.s_addr));
+    dst.sin_port = htons(block_info.loc.port);
+
+    send_id = sendto(udp_sockid, block_info.block_name, strlen(block_info.block_name),
+                        0, (struct sockaddr *)&dst, sizeof(dst));
+    if(send_id == 0) {
+        printf("Cannot send block name for download!\n");
+        exit(1);
+    }
+
+    recv_id = recvfrom(udp_sockid, reply, sizeof(reply), 0, &store, &len_store);
+    if(recv_id == -1) {
+        printf("Cannot recieve ack for  block name for download!\n");
+        exit(1);
+    }
+    
+    if(strcmp(reply, "ACK") == 0) {
+
+        char buffer[BUFSIZ];
+
+        FILE *fb = fopen(block_info.block_name, "w+");
+        if(fb == NULL) {
+            printf("Cannot create block file!\n");
+            exit(1);
+        }
+
+        int recv_bytes = 0;  
+
+        printf("Block %s download initiating\n", block_info.block_name);
+        // recv_id = recvfrom(udp_sockid, recvbuffer, sizeof(recvbuffer), 
+        //                     0, NULL, NULL);
+        // if(recv_id == -1) {
+        //     printf("Cannot receive from broadcasting client!\n");
+        //     exit(1);
+        // }
+        // while(1) {
+        //     if(strcmp(recvbuffer, "exit") == 0) 
+        //         break;
+        //     write(fb, recvbuffer, strlen(recvbuffer));
+        //     bzero(recvbuffer, sizeof(recvbuffer));
+        //     recv_id = recvfrom(udp_sockid, recvbuffer, sizeof(recvbuffer), 
+        //                     0, NULL, NULL);
+        //     if(recv_id == -1) {
+        //         printf("Cannot receive from broadcasting client!\n");
+        //         exit(1);
+        //     }
+        // }
+
+        // while((recv_bytes = read(udp_sockid, recvbuffer, BUFSIZ)) > 0) {
+        //     printf("RECIEVED: %d\n", recv_bytes);
+        //     fwrite(recvbuffer, 1, recv_bytes, fb);
+        //     if(recv_bytes < BUFSIZ)
+        //         break;
+        // }
+
+        while(1) {
+            bzero(recvbuffer, sizeof(recvbuffer));
+            recv_bytes = recvfrom(udp_sockid, recvbuffer, sizeof(recvbuffer), 0,
+                                    &store, &len_store);
+            if(recv_bytes == -1) {
+                printf("Cannot recieve block!\n");
+                exit(1);
+            }
+
+            fwrite(recvbuffer, 1, strlen(recvbuffer), fb);
+
+            if (recvFile(recvbuffer, BUFSIZ)) { 
+                break; 
+            } 
+
+        }
+
+        // while ((n = recvfrom(udp_sockid, recvbuffer, BUFSIZ, 0, &store, &len_store)))) {
+        //     recvbuffer[n] = 0;
+        //     printf("N: %d", n);
+        //     if (!(strcmp(recvbuffer, END_FLAG))) 
+        //         break;
+
+        //     write(fb, recvbuffer, n);
+        // }
+
+        fclose(fb);
+        printf("Block %s recieved.\n", block_info.block_name);
+
+    }
+    else if(strcmp(reply, "NOT") == 0)
+        printf("Block name not found!\n");
+
+}
+
+void merge_blocks(struct block *block_list, int numblocks, char *target_file) {
+    /*
+    block_list -> to access block names
+    */
+    int sprint_stat;
+    char cmnd[2048], files[2048], file[BUFSIZ];
+    bzero(files, 2048);
+
+    for(int i=0; i<numblocks; i++) {
+        // Iterating through each block, and forming the string
+        bzero(file, sizeof(file));
+        snprintf(file, sizeof(file), "%s ", block_list[i].block_name);
+        strcat(files, file);
+
+        printf("FILES %s\n", files);
+    }
+
+    bzero(cmnd, 2048);
+    sprint_stat = snprintf(cmnd, sizeof(cmnd), 
+        "cat %s > %s", files, target_file);
+    if(sprint_stat == -1) {
+        printf("Snprintf error!\n");
+        exit(1);
+    }
+    int sys_stat = system(cmnd);
+    if(sys_stat == -1) {
+        printf("Cannot execute merge-file command!\n");
+        exit(1);
+    }
+
+    bzero(cmnd, 2048);
+    sprint_stat = snprintf(cmnd, sizeof(cmnd), 
+        "chmod 777 %s", target_file);
+    if(sprint_stat == -1) {
+        printf("Snprintf error!\n");
+        exit(1);
+    }
+
+    sys_stat = system(cmnd);
+    if(sys_stat == -1) {
+        printf("Cannot execute give-permission command!\n");
+        exit(1);
+    }
+
+    bzero(cmnd, sizeof(cmnd));
+    sprint_stat = snprintf(cmnd, sizeof(cmnd), 
+        "rm %s", files);
+    if(sprint_stat == -1) {
+        printf("Snprintf error!\n");
+        exit(1);
+    }   
+    sys_stat = system(cmnd);
+    if(sys_stat == -1) {
+        printf("Cannot execute remove-blocks command!\n");
+        exit(1);
+    }
 }
 
 void chat(int sock_id, struct peer other) {
@@ -179,8 +361,7 @@ void chat_recv(int sock_id) {
     printf("---------------------------------------------\n");
 }
 
-long int findSize(const char *file_name)
-{
+long int findSize(const char *file_name) {
     struct stat st;
     
     if(stat(file_name,&st)==0)
@@ -256,6 +437,7 @@ int main(int args, char *argv[]) {
     bzero(buff, 1024);
 
     struct peer peer_list[10]; // Peer list of individual client
+    struct peer *d_peer_list;
     for(int i=0; i<10; i++)
         peer_list[i].peer_id = 0; 
 
@@ -357,15 +539,25 @@ int main(int args, char *argv[]) {
             }
 
             if(strcmp(buff, "PeerUpdate") == 0) {
+                int num_peers = 0;
                 printf("Recieved a peer list update:\n");
 
-                recv_id = recv(sock_id, peer_list, 10*sizeof(struct peer), 0);
+                
+                recv_id = recv(sock_id, &num_peers, sizeof(int), 0);
+                if(recv_id == -1) {
+                    printf("Cannot recieve new peer update!\n");
+                    exit(1);
+                }
+
+                d_peer_list = (struct peer *)malloc(num_peers*sizeof(struct peer));
+
+                recv_id = recv(sock_id, d_peer_list, num_peers*sizeof(struct peer), 0);
                 if(recv_id == -1) {
                     printf("Cannot recieve new peer update!\n");
                     exit(1);
                 }
                 printf("Recieved update\n");
-                display_online_peers(peer_list);
+                display_online_peers(d_peer_list, num_peers);
             }
 
             else if(strcmp(buff, "BlockUpload") == 0) {
@@ -408,20 +600,103 @@ int main(int args, char *argv[]) {
 
         if(FD_ISSET(udp_sockid, &fd_arr)) {
             
-            char request[20];
-            bzero(request, 20);
-            struct sockaddr_in connecting_peer, src; int len_src = sizeof(src);
-            recv_id = recvfrom(udp_sockid, request, sizeof(request),
-                                 0, (struct sockaddr*)&src, &len_src);
+            char filename[20], sendbuffer[BUFSIZ];
+            int n;
+            bzero(filename, 20);
+            struct sockaddr src; int len_src = sizeof(src);
+            recv_id = recvfrom(udp_sockid, filename, sizeof(filename),
+                                 0, &src, &len_src);
             if(recv_id == -1) {
                 printf("Cannot receive connecting peer details!\n");
                 exit(1);
             }
             
-            printf("Chat request recieved from:\n");
-            printf("IP %s PORT %d\n", inet_ntoa(src.sin_addr), src.sin_port);
+            // printf("Chat request recieved from:\n");
+            // printf("IP %s PORT %d\n", inet_ntoa(src.sin_addr), src.sin_port);
 
-            chat_recv(udp_sockid);            
+            // chat_recv(udp_sockid);            
+
+            FILE *fb = fopen(filename, "r+");
+            if(fb == NULL) {
+                printf("File not found!\n");
+                send_id = sendto(udp_sockid, "NOT", strlen("NOT"), 0,
+                                    &src, sizeof(src));
+                if(send_id == 0) {
+                    printf("Cannot send block not found ACK!\n");
+                    exit(1);
+                }
+                exit(1); // Change this to continue
+            }
+
+            send_id = sendto(udp_sockid, "ACK", strlen("ACK"), 0,
+                                    &src, sizeof(src));
+            if(send_id == 0) {
+                printf("Cannot send block not found ACK!\n");
+                exit(1);
+            }
+
+            // while(1) {
+            //     bzero(sendbuffer, BUFSIZ);
+            //     int nread = fread(sendbuffer, BUFSIZ, 1, fb);
+            //     if(nread > 0) {
+            //         // write(udp_sockid, sendbuffer, nread);
+            //         // send_id = sendto(udp_sockid, sendbuffer, strlen(sendbuffer),
+            //         //                     0, &src, sizeof(src));
+            //         // if(send_id == -1) {
+            //         //     printf("Cannot send block to requesting client!\n");
+            //         //     exit(1);
+            //         // }
+            //         write(udp_sockid, sendbuffer, nread);
+            //         printf("SENT: %d\n", nread);
+            //     }
+            //     else if(nread == 0)
+            //         break;
+            // }
+
+            while(1) {
+                bzero(sendbuffer, sizeof(sendbuffer));
+                if(sendFile(fb, sendbuffer, BUFSIZ)) {
+                    send_id = sendto(udp_sockid, sendbuffer, BUFSIZ,
+                                        0,  &src, sizeof(src));
+                    if(send_id == -1) {
+                        printf("Cannot send block!\n");
+                        exit(1);
+                    }
+
+                    printf("SENT %d\n", BUFSIZ);
+                    break;
+                }
+                send_id = sendto(udp_sockid, sendbuffer, BUFSIZ,
+                                        0,  &src, sizeof(src));
+                if(send_id == -1) {
+                    printf("Cannot send block!\n");
+                    exit(1);
+                }
+        }
+
+            // send_id = sendto(udp_sockid, "exit", strlen("exit"),
+            //                     0, &src, sizeof(src));
+            // if(send_id == -1) {
+            //     printf("Cannot send exit msg requesting client!\n");
+            //     exit(1);
+            // }
+
+            // while ((n = read(fb, sendbuffer, BUFSIZ)) > 0) {
+            //     printf("N: %d\n", n);
+            //     send_id = sendto(udp_sockid, sendbuffer, n, 0, &src, sizeof(src));
+            //     if(send_id == -1) {
+            //         printf("Cannot send block to peer!\n");
+            //         exit(1);
+            //     }
+            // }
+            // send_id = sendto(udp_sockid, END_FLAG, strlen(END_FLAG), 0, &src, sizeof(src));
+            // if(send_id == -1) {
+            //     printf("Cannot send END FLAG!\n");
+            //     exit(1);
+            // }
+
+            printf("Block uploaded.\n");
+
         }
 
 
@@ -516,7 +791,7 @@ int main(int args, char *argv[]) {
                         printf("File uploaded.\n");
 
                     }
-                    else if(strcmp(msg, "file-table") == 0) {
+                    else if(strcmp(msg, "ls") == 0) {
                         int file_count = 0;
                         char filename[20];
     
@@ -572,12 +847,14 @@ int main(int args, char *argv[]) {
                         printf("Enter the file to be downloaded:\n");
                         fgets(filename, 20, stdin);
 
+                        // Sending filename to be downloaded to the server
                         send_id = send(sock_id, filename, strlen(filename), 0);
                         if(send_id == -1) {
                             printf("Cannot send filename to be downloaded!\n");
                             exit(1);
                         }
 
+                        // Recieving the number of blocks associated with the files. 0 => File not found
                         recv_id = recv(sock_id, &numblocks, sizeof(int), 0);
                         if(recv_id == -1) {
                             printf("Cannot recieve number of blocks!\n");
@@ -590,21 +867,23 @@ int main(int args, char *argv[]) {
                             exit(1);
                         }
 
-                        if(numblocks == -1) {
+                        if(numblocks == 0) { 
                             printf("File not found!\n");
                             continue;
                         }
 
-                        struct block **blocks_list = (struct block **)malloc(numblocks*sizeof(struct block *));
-                        for(int i=0; i<numblocks; i++)
-                            blocks_list[i] = (struct block *)malloc(sizeof(struct block));
+                        // struct block **blocks_list = (struct block **)malloc(numblocks*sizeof(struct block *));
+                        // for(int i=0; i<numblocks; i++)
+                        //     blocks_list[i] = (struct block *)malloc(sizeof(struct block));
 
-                        struct block *temp = (struct block *)malloc(sizeof(struct block));
+                        struct block blocks_list[numblocks];
+
+                        //struct block *temp = (struct block *)malloc(sizeof(struct block));
                         for(int i=0; i<numblocks; i++) {
 
-                            printf("I: %d\n", i);
-                            
-                            recv_id = recv(sock_id, temp, sizeof(struct block), 0);
+                            //printf("I: %d\n", i);
+                            struct block temp;                           
+                            recv_id = recv(sock_id, &temp, sizeof(struct block), 0);
                             if(recv_id == -1) {
                                 printf("Cannot recieve filename!\n");
                                 exit(1);
@@ -623,10 +902,21 @@ int main(int args, char *argv[]) {
                         printf("-----------------------------------\n");
                         printf("BLOCK LIST:\n");
                         for(int i=0; i<numblocks; i++) {
-                            printf("BLOCK NAME: %s LOC:", blocks_list[i]->block_name);
-                            printf(" IP: %s PORT: %d\n", blocks_list[i]->loc.ip, blocks_list[i]->loc.port);
+                            printf("BLOCK NAME: %s LOC:", blocks_list[i].block_name);
+                            printf(" IP: %s PORT: %d\n", blocks_list[i].loc.ip, blocks_list[i].loc.port);
                         }
                         printf("-----------------------------------\n");
+
+                        printf("Initiating download...\n");
+                        for(int i=0; i<numblocks; i++) {
+                            if(!(strcmp(blocks_list[i].loc.ip, blocks_list[i].loc.ip) == 0 && blocks_list[i].loc.port == CLIENT_PORT)) {
+                                download_block(udp_sockid, blocks_list[i]);
+                                printf("Downloaded Block: %s\n", blocks_list[i].block_name);
+                            }
+                        }
+
+                       // Merging recieved blocks
+                        merge_blocks(blocks_list, numblocks, filename);
                     }
                 }
             }

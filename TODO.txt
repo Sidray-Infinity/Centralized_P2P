@@ -20,3 +20,6 @@
 
 ** Now that some mysql using C api testing is done, start implementing it.
   * Implement the login databse.
+      - First create the required tables manually in mysql.
+      - Make sure to use the concept of 'foreign keys'.
+      
