@@ -1,5 +1,6 @@
 # Centralized Peer-to-Peer architecture for File Sharing
-![Logo](/images/CP2P_logo.png)
+<centre><img src="images/CP2P_logo.png" alt="logo" width=100
+            height=100></centre>
 
 The aim of this project is to provide a file sharing system, among the peers connected to the network, administered by a centralized server.
 
