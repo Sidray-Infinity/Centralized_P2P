@@ -26,11 +26,20 @@ The aim of this project is to provide a file sharing system, among the peers con
         | password  | text       | YES  |     | NULL    |       |
         | isOnline  | tinyint(1) | YES  |     | NULL    |       |
 
+    * online_clients
+
+        |--------|------|------|-----|---------|-------|
+        | Field  | Type | Null | Key | Default | Extra |
+        |--------|------|------|-----|---------|-------|
+        | p_id   | int  | NO   | PRI | NULL    |       |
+        | IP     | text | NO   |     | NULL    |       |
+        | port   | int  | NO   |     | NULL    |       |
+        | log_id | int  | NO   | MUL | NULL    |       |
+        |--------|------|------|-----|---------|-------|
 
 
-* online_clients
-* files
-* blocks
+    * files
+    * blocks
 
 
 
