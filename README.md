@@ -28,20 +28,29 @@ The aim of this project is to provide a file sharing system, among the peers con
 
     * online_clients
 
-        |--------|------|------|-----|---------|-------|
         | Field  | Type | Null | Key | Default | Extra |
         |--------|------|------|-----|---------|-------|
         | p_id   | int  | NO   | PRI | NULL    |       |
         | IP     | text | NO   |     | NULL    |       |
         | port   | int  | NO   |     | NULL    |       |
         | log_id | int  | NO   | MUL | NULL    |       |
-        |--------|------|------|-----|---------|-------|
-
 
     * files
+
+        | Field    | Type | Null | Key | Default | Extra |
+        |----------|------|------|-----|---------|-------|
+        | f_id     | int  | NO   | PRI | NULL    |       |
+        | filename | text | NO   |     | NULL    |       |
+        | p_id     | int  | NO   |     | NULL    |       |
+
     * blocks
 
-
+        | Field     | Type | Null | Key | Default | Extra |
+        |-----------|------|------|-----|---------|-------|
+        | blockname | text | NO   |     | NULL    |       |
+        | dst_IP    | text | NO   |     | NULL    |       |
+        | dst_port  | int  | NO   |     | NULL    |       |
+        | f_id      | int  | NO   | MUL | NULL    |       |
 
 
 ### Server Roles
