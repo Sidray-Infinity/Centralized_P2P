@@ -56,7 +56,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 ## Compilation
 * Compile the server side code using the following command : <br />
-  `gcc server.c -o server. out `mysql_config --cflags --libs``
+  `gcc server.c -o server. out \`mysql_config --cflags --libs\``
 
 
 
