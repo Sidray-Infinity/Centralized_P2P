@@ -57,7 +57,21 @@ The aim of this project is to provide a file sharing system, among the peers con
 ## Compilation
 * Compile the server side code using the following command : <br />
 >        gcc server.c -o server.out `mysql_config --cflags --libs`
+* Compile the client side code using the following command : <br />
+>        gcc client.c -o client.out 
 
+## Execution
+* First start the server side program using `./server.out` and provide the following details: <br />
+    * Server Port Number
+    * User id and password of the MySQL client
+
+* Start the client side program using `./client.out` and provide the following details: <br />
+    * Server IP address and port number
+    * UDP socket port number
+
+* Once connection with server is established, choose whether the client is a new user or not.
+* The client enters it's user name and password, which is registered/auhtenticated by the server.
+  
 
 ### TASKS
 - Handle the problem of 0 byte files.
