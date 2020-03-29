@@ -678,31 +678,39 @@ int main(int args, char *argv[]) {
                         printf("Cannot send username taken message!\n");
                         exit(1);
                     }
-                }   
-                else {
-                    printf("Registering the username and password to the database..\n");
-                    database_counter++;
-                    strcpy(database[database_counter].username, new_user_login.username);
-                    strcpy(database[database_counter].password, new_user_login.password);
-                    database[database_counter].online = 1;
-
-                    bzero(query, sizeof(query));
-                    if(snprintf(query, sizeof(query), "INSERT INTO login_details VALUES(%d, \"%s\", \"%s\", 1)",
-                                    database_counter, new_user_login.username, new_user_login.password) == -1) {
-                        fprintf(stderr, "Snprintf error!\n");
-                        exit(1);
-                    }                     
-                  
-                    if(mysql_query(con, query))
-                        finish_with_error(con);
-  
-                    int send_id = send(client_id, "Registration successful",
-                                         strlen("Registration successful"), 0);
-                    if(send_id == -1) {
-                        printf("Cannot send successful registration msg\n");
-                        exit(1);
+                    while(userNameTaken(new_user_login, con) == TRUE) {
+                        recv_id = recv(client_id, &new_user_login, sizeof(new_user_login), 0);
+                        if(recv_id == -1) {
+                            printf("Cannot recieve login details!\n");
+                            exit(1);
+                        }
                     }
+
+                }   
+           
+                printf("Registering the username and password to the database..\n");
+                database_counter++;
+                strcpy(database[database_counter].username, new_user_login.username);
+                strcpy(database[database_counter].password, new_user_login.password);
+                database[database_counter].online = 1;
+
+                bzero(query, sizeof(query));
+                if(snprintf(query, sizeof(query), "INSERT INTO login_details VALUES(%d, \"%s\", \"%s\", 1)",
+                                database_counter, new_user_login.username, new_user_login.password) == -1) {
+                    fprintf(stderr, "Snprintf error!\n");
+                    exit(1);
+                }                     
+                
+                if(mysql_query(con, query))
+                    finish_with_error(con);
+
+                int send_id = send(client_id, "Registration successful",
+                                        strlen("Registration successful"), 0);
+                if(send_id == -1) {
+                    printf("Cannot send successful registration msg\n");
+                    exit(1);
                 }
+            
             }
             else { // User had a connection with the server in the past.
                 /*

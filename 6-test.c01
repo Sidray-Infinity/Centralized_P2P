@@ -1,0 +1,13 @@
+ hash) + c; /* hash * 33 + c */
+    }
+
+    return hash%100;
+}
+
+int main() {
+    int a = 3;
+    printf("Test\n");
+    // printf("%ld", hash_filename("test.c"));
+    printf("%d\n", a);
+    return 0;
+}

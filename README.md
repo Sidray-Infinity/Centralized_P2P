@@ -3,7 +3,7 @@
 <img src="images/CP2P_logo.png" alt="logo" width=200
             height=180></p>
 
-# Centralized Peer-to-Peer architecture for File Sharing
+# Centralized Peer-to-Peer File Sharing Architecture
 
 
 The aim of this project is to provide a file sharing system, among the peers connected to the network, administered by a centralized server.
@@ -78,7 +78,17 @@ The aim of this project is to provide a file sharing system, among the peers con
 * Once connection with server is established, choose whether the client is a new user or not.
 * The client enters it's user name and password, which is registered/auhtenticated by the server.
   
-  
+## Working
+
+### Commands supported:
+| Command syntax | Function | Example | Parameters |
+| -------------- | -------- | ------- | ---------- |
+| -sys <<COMMAND>> | Executes the COMMAND as a CLI | -sys ls | None |
+| -s <<OPTION>> | Message intended for server | -s exit | * `exit` -> closes the connection with server |
+
+
+* A client first joins the network by registering a username and password with the server, or by loging in if it's already registered.
+* The client can upload 
 
 ### BUGS
 - Handle the problem of 0 byte files.
@@ -87,3 +97,4 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 ### Finalization
 - Remove the clear table commands that is executed, everytime the server starts.
+- Adding the GUI looks close to impossible. Quite the unexpected. It wants me to conver this while thing to a library!
