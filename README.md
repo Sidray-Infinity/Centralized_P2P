@@ -38,7 +38,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 <img src="images/3.jpg" alt="logo" width=260
             height=220></p>
 
-* The client can request for a file from the server using the command `-s download`, specifying the name of the file. The server then sends the block location sof the file the requesting server.
+* The client can request for a file from the server using the command `-s download`, specifying the name of the file. The server then sends the block locations of the file to the requesting client.
  <p align=center>
 <img src="images/4.jpg" alt="logo" width=260
             height=220></p>
