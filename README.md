@@ -5,10 +5,11 @@
 
 # Centralized Peer-to-Peer File Sharing Architecture
 
+<ul><li>#<a href="requirements"></a>Requirements
 
 The aim of this project is to provide a file sharing system, among the peers connected to the network, administered by a centralized server.
 
-## Requirements
+## [Requirements](#requirements)
 * Linux based Operating System.
 * Internet Connection
 
