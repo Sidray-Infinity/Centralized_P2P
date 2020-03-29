@@ -7,6 +7,12 @@
 
 ## Contents
 * [Requirements](#requirements)
+* [Installation Process](#installation-process)
+* [Compilation](#compilation)
+* [Execution](#execution)
+* [Working](#working)
+* [Bugs](#bugs)
+* [Finalization](#finalization)
 
 The aim of this project is to provide a file sharing system, among the peers connected to the network, administered by a centralized server.
 
@@ -18,7 +24,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 * Download the server.c and client.c files.
 
-#### Server side
+### Server side
 * Installing MySQL
     * Execute the following commands on Ubuntu: <br />
         `sudo apt-get update` <br />
@@ -112,11 +118,11 @@ The aim of this project is to provide a file sharing system, among the peers con
 <img src="images/5.jpg" alt="logo" width=250
             height=210></p>
 
-### BUGS
+## BUGS
 - Handle the problem of 0 byte files.
 - Files seems to be merging properly, but with some additional chars. Handle it.
 - Re-entering username after entering used one is buggy. Probably due to use of goto.
 
-### Finalization
+## Finalization
 - Remove the clear table commands that is executed, everytime the server starts.
 - Adding the GUI looks close to impossible. Quite the unexpected. It wants me to conver this while thing to a library!
