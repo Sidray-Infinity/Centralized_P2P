@@ -83,8 +83,15 @@ The aim of this project is to provide a file sharing system, among the peers con
 ### Commands supported:
 | Command syntax | Function | Example | Parameters |
 | -------------- | -------- | ------- | ---------- |
-| -sys <<COMMAND>> | Executes the COMMAND as a CLI | -sys ls | None |
-| -s <<OPTION>> | Message intended for server | -s exit | * `exit` -> closes the connection with server |
+| -sys `COMMAND` | Executes the `COMMAND` as a CLI | -sys ls | None |
+| -s `OPTION` | Message intended for server | -s exit | <ul>
+                                                        <li>`exit` -> closes the connection with server .
+                                                        <li> `upload` -> Uploads a file to the server.
+                                                        <li> `ls` -> Requests the files list from the server.
+                                                        <li>`download` -> Requests to download a file from the server. |
+                                                        
+                                                        
+                                                        
 
 
 * A client first joins the network by registering a username and password with the server, or by loging in if it's already registered.
