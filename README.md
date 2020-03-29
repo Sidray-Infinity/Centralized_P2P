@@ -87,23 +87,23 @@ The aim of this project is to provide a file sharing system, among the peers con
 | -s `OPTION` | Message intended for server | -s exit | <ul><li>`exit` -> closes the connection with server.<li> `upload` -> Uploads a file to the server.<li> `ls` -> Requests the files list from the server.<li>`download` -> Requests to download a file from the server. | 
 * A client first joins the network by registering a username and password with the server, or by loging in if it's already registered.
 <p align=center>
-<img src="images/1.jpg" alt="logo" width=250
-            height=210></p>
+<img src="images/1.jpg" alt="logo" width=260
+            height=220></p>
 
 * The client can upload a file to the server, using the command `-s upload`, and then specifying the local path of the file.
  <p align=center>
-<img src="images/2.jpg" alt="logo" width=250
-            height=210></p>
+<img src="images/2.jpg" alt="logo" width=260
+            height=220></p>
 
 * The server then splits the file based on a fixed block size, and uploads these blocks to clients connected to the network. The location of each block is recorded.
  <p align=center>
-<img src="images/3.jpg" alt="logo" width=250
-            height=210></p>
+<img src="images/3.jpg" alt="logo" width=260
+            height=220></p>
 
 * The client can request for a file from the server using the command `-s download`, specifying the name of the file. The server then sends the block location sof the file the requesting server.
  <p align=center>
-<img src="images/4.jpg" alt="logo" width=250
-            height=210></p>
+<img src="images/4.jpg" alt="logo" width=260
+            height=220></p>
 
 * The client then downloads all the blocks from it's respective locations. It then merges these blocks, to retrieve the file.
  <p align=center>
