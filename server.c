@@ -611,20 +611,7 @@ int main(int args, char *argv[]) {
                 exit(1);
             }
 
-            /*
-            Disabling Nagle's algorithm
-            int flag = 1;
-            int result = setsockopt(client_id,            
-                                    IPPROTO_TCP,     
-                                    TCP_NODELAY,     
-                                    (char *) &flag,  
-                                    sizeof(int));    
-            if (result < 0) {
-                printf("Cannot disable Nagle's algo!\n");
-                exit(1);
-            }
-            */
-
+            
             int send_id = send(client_id, "New User? y or n: ", strlen("New User? y or n: "), 0);
             if(send_id == -1) {
                 printf("Cannot send 'New User' confirmation message!\n");
