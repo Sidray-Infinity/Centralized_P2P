@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -521,9 +522,21 @@ int main(int args, char *argv[]) {
         printf("Cannot create socket!\n");
         exit(1);
     }
-
+    char serv_ip[20];
+    bzero(serv_ip, 20);
+    //printf("Enter serv_ip:\n");
+    //fgets(serv_ip, 20, stdin);
+    //serv_ip[strlen(serv_ip)-1] = '\0';
     struct sockaddr_in addr, store; int len_store = sizeof(store);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    //int s = inet_pton(AF_INET, serv_ip, &(addr.sin_addr));
+    //if (s <= 0) {
+//	if (s == 0)
+//		fprintf(stderr, "Not in presentation format\n");
+//	else
+//		perror("inet_pron");
+//	exit(1);
+  //  }
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_family = AF_INET;
     addr.sin_port = htons(SERVER_PORT);
 
