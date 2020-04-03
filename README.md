@@ -62,10 +62,11 @@ The aim of this project is to provide a file sharing system, among the peers con
         `sudo apt-get update` <br />
         `sudo apt-get install mysql-server`
 
-* Create a new database 'p2p' and four tables to it, namely:
+* Create a new database 'p2p' and add thefour tables to it, namely:
     * login_details
     ```
-    CREATE TABLE login_details(log_id INT PRIMARY KEY, user_name TEXT, password TEXT, isOnline TINYINT(1));
+    CREATE TABLE login_details(log_id INT PRIMARY KEY,
+    user_name TEXT, password TEXT, isOnline TINYINT(1));
     ```
 
         | Field     | Type       | Null | Key | Default | Extra |
@@ -77,7 +78,8 @@ The aim of this project is to provide a file sharing system, among the peers con
 
     * online_clients
     ```
-    CREATE TABLE online_clients(p_id INT PRIMARY KEY, IP TEXT NOT NULL, port INT NOT NULL, log_id TEXT NOT NULL, FOREIGN KEY (log_id) REFERENCES login_details(log_id));
+    CREATE TABLE online_clients(p_id INT PRIMARY KEY, IP TEXT NOT NULL, port INT NOT NULL,
+    log_id TEXT NOT NULL, FOREIGN KEY (log_id) REFERENCES login_details(log_id));
     ```
         | Field  | Type | Null | Key | Default | Extra |
         |--------|------|------|-----|---------|-------|
@@ -99,7 +101,8 @@ The aim of this project is to provide a file sharing system, among the peers con
 
     * blocks
     ```
-    CREATE TABLE blocks(blockname TEXT NOT NULL, dst_IP TEXT NOT NULL, dst_port INT NOT NULL, f_id INT NOT NULL, FOREIGN KEY (f_id) REFERENCES files(f_id));
+    CREATE TABLE blocks(blockname TEXT NOT NULL, dst_IP TEXT NOT NULL, dst_port INT NOT NULL,
+    f_id INT NOT NULL, FOREIGN KEY (f_id) REFERENCES files(f_id));
     ```
 
         | Field     | Type | Null | Key | Default | Extra |
