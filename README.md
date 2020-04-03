@@ -65,8 +65,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 * Create a new database 'p2p' and add thefour tables to it, namely:
     * login_details
     ```
-    CREATE TABLE login_details(log_id INT PRIMARY KEY,
-    user_name TEXT, password TEXT, isOnline TINYINT(1));
+    CREATE TABLE login_details(log_id INT PRIMARY KEY, user_name TEXT, password TEXT, isOnline TINYINT(1));
     ```
 
         | Field     | Type       | Null | Key | Default | Extra |
@@ -81,6 +80,7 @@ The aim of this project is to provide a file sharing system, among the peers con
     CREATE TABLE online_clients(p_id INT PRIMARY KEY, IP TEXT NOT NULL, port INT NOT NULL,
     log_id TEXT NOT NULL, FOREIGN KEY (log_id) REFERENCES login_details(log_id));
     ```
+
         | Field  | Type | Null | Key | Default | Extra |
         |--------|------|------|-----|---------|-------|
         | p_id   | int  | NO   | PRI | NULL    |       |
@@ -93,6 +93,7 @@ The aim of this project is to provide a file sharing system, among the peers con
     CREATE TABLE files(f_id INT PRIMARY KEY, filename TEXT NOT NULL, p_id INT);
     ```
 
+
         | Field    | Type | Null | Key | Default | Extra |
         |----------|------|------|-----|---------|-------|
         | f_id     | int  | NO   | PRI | NULL    |       |
@@ -104,6 +105,7 @@ The aim of this project is to provide a file sharing system, among the peers con
     CREATE TABLE blocks(blockname TEXT NOT NULL, dst_IP TEXT NOT NULL, dst_port INT NOT NULL,
     f_id INT NOT NULL, FOREIGN KEY (f_id) REFERENCES files(f_id));
     ```
+    
 
         | Field     | Type | Null | Key | Default | Extra |
         |-----------|------|------|-----|---------|-------|
