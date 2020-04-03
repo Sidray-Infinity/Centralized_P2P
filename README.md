@@ -68,51 +68,49 @@ The aim of this project is to provide a file sharing system, among the peers con
     CREATE TABLE login_details(log_id INT PRIMARY KEY, user_name TEXT, password TEXT, isOnline TINYINT(1));
     ```
 
-        | Field     | Type       | Null | Key | Default | Extra |
-        |-----------|------------|------|-----|---------|-------|
-        | log_id    | int        | NO   | PRI | NULL    |       |
-        | user_name | text       | YES  |     | NULL    |       |
-        | password  | text       | YES  |     | NULL    |       |
-        | isOnline  | tinyint(1) | YES  |     | NULL    |       |
+    | Field     | Type       | Null | Key | Default | Extra |
+    |-----------|------------|------|-----|---------|-------|
+    | log_id    | int        | NO   | PRI | NULL    |       |
+    | user_name | text       | YES  |     | NULL    |       |
+    | password  | text       | YES  |     | NULL    |       |
+    | isOnline  | tinyint(1) | YES  |     | NULL    |       |
 
     * online_clients
     ```
     CREATE TABLE online_clients(p_id INT PRIMARY KEY, IP TEXT NOT NULL, port INT NOT NULL,
     log_id TEXT NOT NULL, FOREIGN KEY (log_id) REFERENCES login_details(log_id));
-    ```
+   ```
 
-        | Field  | Type | Null | Key | Default | Extra |
-        |--------|------|------|-----|---------|-------|
-        | p_id   | int  | NO   | PRI | NULL    |       |
-        | IP     | text | NO   |     | NULL    |       |
-        | port   | int  | NO   |     | NULL    |       |
-        | log_id | int  | NO   | MUL | NULL    |       |
+    | Field  | Type | Null | Key | Default | Extra |
+    |--------|------|------|-----|---------|-------|
+    | p_id   | int  | NO   | PRI | NULL    |       |
+    | IP     | text | NO   |     | NULL    |       |
+    | port   | int  | NO   |     | NULL    |       |
+    | log_id | int  | NO   | MUL | NULL    |       |
 
     * files
     ```
     CREATE TABLE files(f_id INT PRIMARY KEY, filename TEXT NOT NULL, p_id INT);
     ```
 
-
-        | Field    | Type | Null | Key | Default | Extra |
-        |----------|------|------|-----|---------|-------|
-        | f_id     | int  | NO   | PRI | NULL    |       |
-        | filename | text | NO   |     | NULL    |       |
-        | p_id     | int  | NO   |     | NULL    |       |
+    | Field    | Type | Null | Key | Default | Extra |
+    |----------|------|------|-----|---------|-------|
+    | f_id     | int  | NO   | PRI | NULL    |       |
+    | filename | text | NO   |     | NULL    |       |
+    | p_id     | int  | NO   |     | NULL    |       |
 
     * blocks
     ```
     CREATE TABLE blocks(blockname TEXT NOT NULL, dst_IP TEXT NOT NULL, dst_port INT NOT NULL,
     f_id INT NOT NULL, FOREIGN KEY (f_id) REFERENCES files(f_id));
     ```
-    
 
-        | Field     | Type | Null | Key | Default | Extra |
-        |-----------|------|------|-----|---------|-------|
-        | blockname | text | NO   |     | NULL    |       |
-        | dst_IP    | text | NO   |     | NULL    |       |
-        | dst_port  | int  | NO   |     | NULL    |       |
-        | f_id      | int  | NO   | MUL | NULL    |       |
+    | Field     | Type | Null | Key | Default | Extra |
+    |-----------|------|------|-----|---------|-------|
+    | blockname | text | NO   |     | NULL    |       |
+    | dst_IP    | text | NO   |     | NULL    |       |
+    | dst_port  | int  | NO   |     | NULL    |       |
+    | f_id      | int  | NO   | MUL | NULL    |       |
 
 * Create a new user and grant all privileges to it.
 
