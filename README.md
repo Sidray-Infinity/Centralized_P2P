@@ -175,3 +175,5 @@ The aim of this project is to provide a file sharing system, among the peers con
 ## Finalization
 - Remove the clear table commands that is executed, everytime the server starts.
 - Adding the GUI looks close to impossible. Quite the unexpected. It wants me to conver this while thing to a library!
+- Add compression: Looking into arithmetic encoding.
+- Add encryption.

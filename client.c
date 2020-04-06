@@ -417,9 +417,12 @@ int main(int args, char *argv[]) {
 
         self_bind = bind(udp_sockid, (struct sockaddr*)&self, sizeof(self));
     }
-
+    char serv_ip[20];
+    bzero(serv_ip, 20);
+    printf("Enter server IP:\n");
+    fgets(serv_ip, 20, stdin);
     struct sockaddr_in addr;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_addr.s_addr = htonl(serv_ip);
     addr.sin_family = AF_INET;
     addr.sin_port = htons(SERVER_PORT);
   
