@@ -23,3 +23,22 @@
       - First create the required tables manually in mysql.
       - Make sure to use the concept of 'foreign keys'.
       
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+
+** Trying my hand on compression:
+  * Where should the compression happen?
+    - Ideally on the client side, to save network bandwidth, trading off with the
+      simplicity of client side architecture.
+    - Maybe encrypting in future, so first compress, then encrypt.
+    - Starting with client side encryption.
+
+  * Arithmetic Encoding :
+    - Frequently used characters stored with fever bits, than non frewuent characters.
+    - Encodes entire message into a single floating point number. Represents the current information as a range, defined by two numbers.
+      - Model : Predicts the probability of occurance of a character.
+      - Encoder/Decodr : Encodes/decodes based on the model.
+    - The conceptual idea of an arithmetic coding model is that each symbol will own its own unique segment of the number line of real numbers between 0 and 1.
+
+  * Asymmetric Numeral System :
+    - The basic idea is to encode information into a single natural number x.
