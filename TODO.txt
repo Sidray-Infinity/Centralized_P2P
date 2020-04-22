@@ -26,15 +26,47 @@
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
 
-** Trying my hand on compression:
+** Trying a hand on compression:
+
   * Where should the compression happen?
     - Ideally on the client side, to save network bandwidth, trading off with the
       simplicity of client side architecture.
     - Maybe encrypting in future, so first compress, then encrypt.
     - Starting with client side encryption.
 
+  * DEFLATE algorithm :
+    - Huffman + LZ77
+    - 3 bit header :
+      - 1st bit : 1 - Last block
+                  0 - Not the lasdt block, more blocks follow
+      - 2 & 3 bit : 00 - stored/raw section(uncompressed) - 0 to 65535 bytes
+                    01 - static Huffman compressed block
+                    10 - compressed block with Huffman Theres
+                    11 - reserved, don't use
+
+    - Phase 1 : 
+        Match and replace duplicate strings with pointers.
+    - Phase 2 :
+        Replace symbols with the weighted sumbols based on frequency.
+
+    HUFFMAN PART :
+      - Calculate Frequencies :
+        Guess or calculate ? Maybe a combination of both.
+          -- Take the average of 10 random sampliing regions ? 
+
+
+    DATA:
+    - For 1 gb file : The distribution is even ... its almost weird.
+      {'0': 134221332, '1': 134212584, '2': 134208494, '3': 134202419, '4': 134200327,
+       '5': 134236757, '6': 134231513, '7': 134220297, '8': 134197373, '9': 134219856, 
+       'a': 134217135, 'b': 134220965, 'c': 134214495, 'd': 134221382, 'e': 134241200, 
+       'f ': 134217519}
+
+
   * Arithmetic Encoding :
     - Frequently used characters stored with fever bits, than non frewuent characters.
+    - Length contributed by a character of probability p, is log(1/p).
+    - Major adv : Seperation of the coder from the modeling process.
     - Encodes entire message into a single floating point number. Represents the current information as a range, defined by two numbers.
       - Model : Predicts the probability of occurance of a character.
       - Encoder/Decodr : Encodes/decodes based on the model.
