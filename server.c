@@ -121,19 +121,10 @@ int numUsersOnline(struct peer online_clients[]) {
     return num_users_online;
 }
 
-// int userNameTaken(struct login user, struct login database[], int database_counter) {
-//     // Determines if the username is already taken or not
-
-//     for(int i=0; i<=database_counter; i++)
-//         if(strcmp(database[i].username, user.username) == 0)
-//             return TRUE;
-//     return FALSE;
-// }
 
 int userNameTaken(struct login user, MYSQL *con) {
     // Determines if the username is already taken or not
 
-    
     char query[50];
     bzero(query, 50);
 
@@ -146,7 +137,6 @@ int userNameTaken(struct login user, MYSQL *con) {
         finish_with_error(con);
 
     MYSQL_RES *result = mysql_store_result(con);
-    //printf("RESULT LEN: %ld\n", mysql_num_rows(result));
     if(mysql_num_rows(result) == 0)
         return FALSE;
 
@@ -196,20 +186,6 @@ void show_online_clients(MYSQL *con) {
         
 }
 
-// int authenticate_login(struct login user, struct login *database, int database_counter) {
-//     // Authenticates the login details provided by the user.
-    
-//     for(int i=0; i<=database_counter; i++) 
-//         if(strcmp(database[i].username, user.username) == 0 && 
-//            strcmp(database[i].password, user.password) == 0) {
-//             if(database[i].online == 0) {
-//                 return i;
-//             }
-//             else 
-//                 return -2;
-//         }
-//     return -1;
-// }
 
 int authenticate_login(struct login user, MYSQL *con) {
     // Authenticates the login details provided by the user.
@@ -340,8 +316,6 @@ void broadcast_peerlist_sql(MYSQL *con) {
             exit(1);
         }
     }
-
-    //free(online_clients);
 
 }
 
@@ -524,18 +498,9 @@ int main(int args, char *argv[]) {
     }
     char serv_ip[20];
     bzero(serv_ip, 20);
-    //printf("Enter serv_ip:\n");
-    //fgets(serv_ip, 20, stdin);
-    //serv_ip[strlen(serv_ip)-1] = '\0';
+
     struct sockaddr_in addr, store; int len_store = sizeof(store);
-    //int s = inet_pton(AF_INET, serv_ip, &(addr.sin_addr));
-    //if (s <= 0) {
-//	if (s == 0)
-//		fprintf(stderr, "Not in presentation format\n");
-//	else
-//		perror("inet_pron");
-//	exit(1);
-  //  }
+
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_family = AF_INET;
     addr.sin_port = htons(SERVER_PORT);
@@ -1084,12 +1049,7 @@ int main(int args, char *argv[]) {
                         }
                     }
 
-                    // printf("BLOCK COUNT: %d\n", block_count);
-                    // getc(stdin);
-
-
                     show_DHT(DHT);
-                    // send_table_to_client(DHT, online_clients[i]);
                     upload_to_clients(DHT, index);
                     remove_from_server(DHT, index);
                     
@@ -1111,54 +1071,7 @@ int main(int args, char *argv[]) {
                     }
                     filename[strlen(filename)-1] = '\0';
                     // printf("FILENAME RECIEVED %s\n", filename);
-                    
-                    /*
-                    int index = hash_filename(filename);
-                    if(DHT[index].block_arr != NULL) {
-                        num_blocks = DHT[index].num_blocks;
 
-                        send_id = send(online_clients[i].peer_id, &num_blocks, sizeof(int), 0);
-                        if(send_id == -1) {
-                            printf("Cannot send number of blocks!\n");
-                            exit(1);
-                        }
-
-                        recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
-                        if(recv_id == -1) {
-                            printf("Cannot recieve ACK for num blocks!\n");
-                            exit(1);
-                        }
-
-                        for(struct block *q = DHT[index].block_arr; q != NULL; q = q->next) {
-                            bzero(reply, 4);
-
-                            printf("SENDING BLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port);
-
-                            send_id = send(online_clients[i].peer_id, q, sizeof(struct block), 0);
-                            if(send_id == -1) {
-                                printf("Cannot send block info!\n");
-                                exit(1);
-                            }
-
-                            recv_id = recv(online_clients[i].peer_id, reply, sizeof(reply), 0);
-                            if(recv_id == -1) {
-                                printf("Cannot recieve ACK for blocks!\n");
-                                exit(1);
-                            } 
-                        }
-                    }
-                    else {
-                        // Entry of the index in DHT is empty
-                    
-                        send_id = send(online_clients[i].peer_id, &num_blocks, sizeof(int), 0);
-                        if(send_id == -1) {
-                            printf("Cannot send number of blocks!\n");
-                            exit(1);
-                        }
-
-                        continue;
-                    }
-                    */
 
                     bzero(query, sizeof(query));
                     if(snprintf(query, sizeof(query),
@@ -1254,6 +1167,8 @@ int main(int args, char *argv[]) {
         }
 
         if(FD_ISSET(0, &fd_arr)) {
+            /* Server side system interaction */
+
             bzero(buff, 100);
             fgets(buff, 1024, stdin);
 
@@ -1270,6 +1185,20 @@ int main(int args, char *argv[]) {
                     }
                 }
             }
+            /* BUGGY
+            else if(strncmp(buff, "-show ", 6) == 0) {
+                printf("TEST\n");
+                if(strlen(buff) < 6)
+                    printf("Message too small!\n");
+                else {
+                    char *msg = buff + 5;
+                    if(strcmp(msg, "online_clients") == 0)
+                        show_online_clients(con);
+                    else if(strcmp(msg, "login_database") == 0)
+                        show_auth_DB(con);
+                }
+            }
+            */
             
             else if(strcmp(buff, "exit") == 0) {
                 printf("Goodbye.\n");

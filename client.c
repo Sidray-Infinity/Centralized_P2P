@@ -385,18 +385,6 @@ int main(int args, char *argv[]) {
         exit(1);
     }
 
-    // Disabling Nagle's algorithm
-    // int flag = 1;
-    // int result = setsockopt(sock_id,            /* socket affected */
-    //                         IPPROTO_TCP,     /* set option at TCP level */
-    //                         TCP_NODELAY,     /* name of option */
-    //                         (char *) &flag,  /* the cast is historical cruft */
-    //                         sizeof(int));    /* length of option value */
-    // if (result < 0) {
-    //     printf("Cannot disable Nagle's algo!\n");
-    //     exit(1);
-    // }
-
     // Opening a UDP connection for the client at a predifiend port.
     int udp_sockid = socket(AF_INET, SOCK_DGRAM, 0);
     if(udp_sockid == -1) {
@@ -417,12 +405,10 @@ int main(int args, char *argv[]) {
 
         self_bind = bind(udp_sockid, (struct sockaddr*)&self, sizeof(self));
     }
-    char serv_ip[20];
-    bzero(serv_ip, 20);
-    printf("Enter server IP:\n");
-    fgets(serv_ip, 20, stdin);
+
+
     struct sockaddr_in addr;
-    addr.sin_addr.s_addr = htonl(serv_ip);
+    addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(SERVER_PORT);
   
@@ -613,12 +599,7 @@ int main(int args, char *argv[]) {
                 printf("Cannot receive connecting peer details!\n");
                 exit(1);
             }
-            
-            // printf("Chat request recieved from:\n");
-            // printf("IP %s PORT %d\n", inet_ntoa(src.sin_addr), src.sin_port);
-
-            // chat_recv(udp_sockid);            
-
+                   
             FILE *fb = fopen(filename, "r+");
             if(fb == NULL) {
                 printf("File not found!\n");
@@ -637,24 +618,6 @@ int main(int args, char *argv[]) {
                 printf("Cannot send block not found ACK!\n");
                 exit(1);
             }
-
-            // while(1) {
-            //     bzero(sendbuffer, BUFSIZ);
-            //     int nread = fread(sendbuffer, BUFSIZ, 1, fb);
-            //     if(nread > 0) {
-            //         // write(udp_sockid, sendbuffer, nread);
-            //         // send_id = sendto(udp_sockid, sendbuffer, strlen(sendbuffer),
-            //         //                     0, &src, sizeof(src));
-            //         // if(send_id == -1) {
-            //         //     printf("Cannot send block to requesting client!\n");
-            //         //     exit(1);
-            //         // }
-            //         write(udp_sockid, sendbuffer, nread);
-            //         printf("SENT: %d\n", nread);
-            //     }
-            //     else if(nread == 0)
-            //         break;
-            // }
 
             while(1) {
                 bzero(sendbuffer, sizeof(sendbuffer));
@@ -675,28 +638,7 @@ int main(int args, char *argv[]) {
                     printf("Cannot send block!\n");
                     exit(1);
                 }
-        }
-
-            // send_id = sendto(udp_sockid, "exit", strlen("exit"),
-            //                     0, &src, sizeof(src));
-            // if(send_id == -1) {
-            //     printf("Cannot send exit msg requesting client!\n");
-            //     exit(1);
-            // }
-
-            // while ((n = read(fb, sendbuffer, BUFSIZ)) > 0) {
-            //     printf("N: %d\n", n);
-            //     send_id = sendto(udp_sockid, sendbuffer, n, 0, &src, sizeof(src));
-            //     if(send_id == -1) {
-            //         printf("Cannot send block to peer!\n");
-            //         exit(1);
-            //     }
-            // }
-            // send_id = sendto(udp_sockid, END_FLAG, strlen(END_FLAG), 0, &src, sizeof(src));
-            // if(send_id == -1) {
-            //     printf("Cannot send END FLAG!\n");
-            //     exit(1);
-            // }
+            }
 
             printf("Block uploaded.\n");
 
@@ -764,16 +706,6 @@ int main(int args, char *argv[]) {
 
                         printf("File name sent.\n");
 
-                        // recv_id = recv(sock_id, ack, 3, 0);
-                        // if(recv_id == -1) {
-                        //     printf("Cannot recieve ACK for filename!\n");
-                        //     exit(1);
-                        // }
-
-                        // if(strcmp(ack, "ACK") != 0) {
-                        //     printf("Invalid reply from server!\n");
-                        //     continue;
-                        // }
 
                         FILE *f = fopen(filename, "r ");
                         if(f == NULL) {
@@ -875,16 +807,10 @@ int main(int args, char *argv[]) {
                             continue;
                         }
 
-                        // struct block **blocks_list = (struct block **)malloc(numblocks*sizeof(struct block *));
-                        // for(int i=0; i<numblocks; i++)
-                        //     blocks_list[i] = (struct block *)malloc(sizeof(struct block));
-
                         struct block blocks_list[numblocks];
 
-                        //struct block *temp = (struct block *)malloc(sizeof(struct block));
                         for(int i=0; i<numblocks; i++) {
 
-                            //printf("I: %d\n", i);
                             struct block temp;                           
                             recv_id = recv(sock_id, &temp, sizeof(struct block), 0);
                             if(recv_id == -1) {
@@ -899,7 +825,7 @@ int main(int args, char *argv[]) {
                             }
 
                             blocks_list[i] = temp;
-                            // free(temp);
+
                         }
 
                         printf("-----------------------------------\n");

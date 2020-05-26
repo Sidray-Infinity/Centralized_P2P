@@ -133,9 +133,9 @@ The aim of this project is to provide a file sharing system, among the peers con
 * The client enters it's user name and password, which is registered/auhtenticated by the server.
 
 ## BUGS
-- Handle the problem of 0 byte files.
-- Files seems to be merging properly, but with some additional chars. Handle it.
-- Re-entering username after entering used one is buggy. Probably due to use of goto.
+- **The number of blocks created should depend on a fixed block size, and not on the number of users online (as is the case now.)**
+- The occasional file transfer errors that occur needs to be fixed.
+- Maybe using file descriptors was not the right choice after all. Maybe threading is better?
 
 ## Finalization
 - Remove the clear table commands that is executed, everytime the server starts.

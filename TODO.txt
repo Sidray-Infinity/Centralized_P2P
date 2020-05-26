@@ -23,6 +23,15 @@
       - First create the required tables manually in mysql.
       - Make sure to use the concept of 'foreign keys'.
       
+
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+
+** SOME SERIOUS BUGS :
+  - Split the file on the block size, and not number of clients
+  - How to access the block stored with a client, that has gone offline ??
+
+
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
 
