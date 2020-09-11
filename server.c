@@ -120,14 +120,6 @@ int numUsersOnline(struct peer online_clients[]) {
     return num_users_online;
 }
 
-// int userNameTaken(struct login user, struct login database[], int database_counter) {
-//     // Determines if the username is already taken or not
-
-//     for(int i=0; i<=database_counter; i++)
-//         if(strcmp(database[i].username, user.username) == 0)
-//             return TRUE;
-//     return FALSE;
-// }
 
 int userNameTaken(struct login user, MYSQL *con) {
     // Determines if the username is already taken or not
@@ -195,20 +187,6 @@ void show_online_clients(MYSQL *con) {
         
 }
 
-// int authenticate_login(struct login user, struct login *database, int database_counter) {
-//     // Authenticates the login details provided by the user.
-    
-//     for(int i=0; i<=database_counter; i++) 
-//         if(strcmp(database[i].username, user.username) == 0 && 
-//            strcmp(database[i].password, user.password) == 0) {
-//             if(database[i].online == 0) {
-//                 return i;
-//             }
-//             else 
-//                 return -2;
-//         }
-//     return -1;
-// }
 
 int authenticate_login(struct login user, MYSQL *con) {
     // Authenticates the login details provided by the user.
@@ -438,20 +416,6 @@ void remove_from_server(struct file_node DHT[], int index) {
     printf("Files and their blocks removed from server.\n");
 }
 
-void show_DHT(struct file_node DHT[]) {
-    printf("---------------------------------------------\n");
-    printf("BLOCK DISTRIBUTION TABLE\n\n");
-    for(int i=0; i<100; i++) {
-        if(DHT[i].block_arr != NULL) {
-            printf("FILENAME: %s \n", DHT[i].filename);
-            for(struct block *q = DHT[i].block_arr; q != NULL; q = q->next)
-                printf("\tBLOCKNAME: %s IP: %s PORT: %d\n", q->block_name, q->loc.ip, q->loc.port);
-            printf("\n");
-           
-        }
-    }
-    printf("---------------------------------------------\n");
-}
 
 void send_files_to_client(MYSQL *con, struct peer client) {
     /*  Send the list of files available the client requesting it  */
@@ -567,7 +531,7 @@ int main(int args, char *argv[]) {
 		finish_with_error(con);
 
 
-    // Remove after completion !!
+    // Clearing the tables everytime the server starts. Remove after completion !!
     if(mysql_query(con, "DELETE FROM online_clients WHERE TRUE"))
         finish_with_error(con);
     if(mysql_query(con, "DELETE FROM login_details WHERE TRUE"))
@@ -602,7 +566,7 @@ int main(int args, char *argv[]) {
         }
 
         if(FD_ISSET(sock_id, &fd_arr)) {
-            int isNewClient = 0;
+            int isNewClient = FALSE;
 
             printf("A client is trying to connect. Check the login details.\n");
             int client_id = accept(sock_id, (struct sockaddr*)&store, &len_store);
@@ -611,19 +575,7 @@ int main(int args, char *argv[]) {
                 exit(1);
             }
 
-            /*
-            Disabling Nagle's algorithm
-            int flag = 1;
-            int result = setsockopt(client_id,            
-                                    IPPROTO_TCP,     
-                                    TCP_NODELAY,     
-                                    (char *) &flag,  
-                                    sizeof(int));    
-            if (result < 0) {
-                printf("Cannot disable Nagle's algo!\n");
-                exit(1);
-            }
-            */
+            printf("Client ID: %d\n", client_id);
 
             int send_id = send(client_id, "New User? y or n: ", strlen("New User? y or n: "), 0);
             if(send_id == -1) {
@@ -643,6 +595,13 @@ int main(int args, char *argv[]) {
                 isNewClient = TRUE;
             else if(strcmp(buff, "n") != 0) {
                 printf("Wrong input from client!\n");
+                
+                send_id = send(client_id, "Hello mozzila! ", strlen("Hello mozzila! "), 0);
+                if(send_id == -1) {
+                    printf("Cannot send 'New User' confirmation message!\n");
+                    exit(1);
+                }
+
                 continue;
             }
 
@@ -671,22 +630,21 @@ int main(int args, char *argv[]) {
                 } 
                 */
 
-                if(userNameTaken(new_user_login, con) == TRUE) {
+                while(userNameTaken(new_user_login, con) == TRUE) {
+
                     printf("Used Username entered by the client.\n");
                     send_id = send(client_id, "Username taken.", strlen("Username taken."), 0);
                     if(send_id == 0) {
                         printf("Cannot send username taken message!\n");
                         exit(1);
                     }
-                    while(userNameTaken(new_user_login, con) == TRUE) {
-                        recv_id = recv(client_id, &new_user_login, sizeof(new_user_login), 0);
-                        if(recv_id == -1) {
-                            printf("Cannot recieve login details!\n");
-                            exit(1);
-                        }
-                    }
 
-                }   
+                    recv_id = recv(client_id, &new_user_login, sizeof(new_user_login), 0);
+                    if(recv_id == -1) {
+                        printf("Cannot recieve login details!\n");
+                        exit(1);
+                    }
+                }
            
                 printf("Registering the username and password to the database..\n");
                 database_counter++;
@@ -843,7 +801,7 @@ int main(int args, char *argv[]) {
 
         for(int i=0; i<10; i++) {
             if(online_clients[i].peer_id != 0 && FD_ISSET(online_clients[i].peer_id, &fd_arr)) {
-                printf("Recieving a message from the client:\n");
+      
                 int client_id = online_clients[i].peer_id;
 
                 bzero(buff, 1024);
@@ -853,7 +811,7 @@ int main(int args, char *argv[]) {
                     exit(1);
                 }
                 //buff[strlen(buff)-1] = '\0';
-                printf("FROM CLIENT: %s\n", buff);
+                printf("FROM CLIENT %d: %s\n",online_clients[i].peer_id, buff);
 
                 if(strcmp(buff, "exit") == 0) {
                     printf("Connection close request recieve. Processing...\n");
@@ -1088,7 +1046,7 @@ int main(int args, char *argv[]) {
                     // getc(stdin);
 
 
-                    show_DHT(DHT);
+                   // show_DHT(DHT);
                     // send_table_to_client(DHT, online_clients[i]);
                     upload_to_clients(DHT, index);
                     remove_from_server(DHT, index);
@@ -1109,8 +1067,8 @@ int main(int args, char *argv[]) {
                         printf("Cannot recieve filename for download!\n");
                         exit(1);
                     }
-                    filename[strlen(filename)-1] = '\0';
-                    // printf("FILENAME RECIEVED %s\n", filename);
+                    filename[strlen(filename)] = '\0';
+                    printf("FILENAME RECIEVED %s\n", filename);
                     
                     /*
                     int index = hash_filename(filename);

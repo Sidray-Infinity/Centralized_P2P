@@ -157,6 +157,7 @@ The aim of this project is to provide a file sharing system, among the peers con
 - Handle the problem of 0 byte files.
 - Files seems to be merging properly, but with some additional chars. Handle it.
 - Re-entering username after entering used one is buggy. Probably due to use of goto.
+- Content concatenated with block name (sometimes).
 
 ## Finalization
 - Remove the clear table commands that is executed, everytime the server starts.
