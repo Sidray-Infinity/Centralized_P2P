@@ -78,7 +78,7 @@ The aim of this project is to provide a file sharing system, among the peers con
     * online_clients
     ```
     CREATE TABLE online_clients(p_id INT PRIMARY KEY, IP TEXT NOT NULL, port INT NOT NULL,
-    log_id TEXT NOT NULL, FOREIGN KEY (log_id) REFERENCES login_details(log_id));
+    log_id INT NOT NULL, FOREIGN KEY (log_id) REFERENCES login_details(log_id));
    ```
 
     | Field  | Type | Null | Key | Default | Extra |
