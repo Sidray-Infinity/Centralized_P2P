@@ -50,7 +50,6 @@ The aim of this project is to provide a file sharing system, among the peers con
 
 ## Requirements
 * Linux based Operating System.
-* Internet Connection
 
 ## Installation Process
 
